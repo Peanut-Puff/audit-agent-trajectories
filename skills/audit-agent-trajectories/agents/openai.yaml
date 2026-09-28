@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent 轨迹审计"
+  short_description: "审计 Harbor agent 轨迹、资源消耗与聚合根因"
+  default_prompt: "使用 $audit-agent-trajectories 审计这些 Harbor agent 轨迹，先判断健康度与可比性，再生成中文报告和机器证据。"
