@@ -2,7 +2,7 @@
 
 面向 Harbor、DeepSWE、Pier 及类似 coding-agent evaluation 的证据化轨迹审计 skill。它先判断数据的可分析性与可比性，再分别审计环境、评测完整性、Token、耗时、得分、交付链、失败模式和首个 consequential break。
 
-当前版本：`v2.0.0`。
+当前版本：`v2.2.0`。
 
 ## 安装
 
@@ -57,6 +57,11 @@ python3 skills/audit-agent-trajectories/scripts/audit_trajectories.py \
 ```
 
 运行时只依赖 Python 3.10+ 标准库。
+
+AEO 可通过版本化 `AnalysisAgentAdapter` 把裁剪、脱敏的 Trial facts 与 addressable
+evidence 交给该方法。此模式不要求把 AEO Trace ZIP 改造成 Harbor 目录，也不允许分析
+结果覆盖 Verifier、Canonical outcome 或人工 Root Cause；契约见
+[`references/adapters/aeo.md`](skills/audit-agent-trajectories/references/adapters/aeo.md)。
 
 ## 仓库结构
 

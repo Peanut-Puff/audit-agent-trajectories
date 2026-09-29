@@ -7,6 +7,7 @@
 | Codex | `codex` | `.agents/skills` | `npx` 管理；官方目录 `~/.agents/skills` | 已验证发现与安装 |
 | Claude Code | `claude-code` | `.claude/skills` | `~/.claude/skills` | 已验证发现与安装 |
 | BitFun | 无专用 ID | `.bitfun/skills`，并扫描多个通用目录 | `bitfun skills add --level user` | 按源码命令与 registry 验证 |
+| AEO | `AnalysisAgentAdapter` | 内置插件 | 后台固定 manifest 与 endpoint | 结构化 facts/evidence 接入 |
 | Cursor 等 | 运行 `npx skills --help` 查询 | 由 skills CLI 映射 | 由 skills CLI 映射 | 标准格式兼容 |
 
 ## 格式兼容
@@ -23,6 +24,7 @@
 - Codex 和 Claude Code 的隔离项目安装会保留完整 skill 目录。
 - BitFun 的 skill parser 接受同一 `SKILL.md`，其 registry 扫描 `.bitfun/.claude/.codex/.agents` 等项目目录。
 - 单 trial、单 job 和配对 job 的 extractor 测试不依赖宿主。
+- AEO 使用 `aeo-audit-agent-request/1.0`，不要求把 Canonical Trace 投影转换为 Harbor 目录。
 
 ## 宿主差异
 

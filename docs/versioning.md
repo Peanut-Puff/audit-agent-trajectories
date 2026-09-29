@@ -8,7 +8,7 @@
 - `SCHEMA_VERSION`：机器输出的破坏性 schema 版本。
 - `SCRIPT_VERSION`：提取器实现版本。
 
-首个独立仓库版本为 `v2.0.0`，对应方法版本 `2.0.0`。
+首个独立仓库版本为 `v2.0.0`；AEO 结构化输入从 `v2.1.0` 开始支持，Run 聚合从 `v2.2.0` 开始支持。
 
 ## Semantic Versioning
 

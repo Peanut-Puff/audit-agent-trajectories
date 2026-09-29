@@ -2,6 +2,30 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.2.0] - 2026-09-29
+
+### Added
+
+- AEO adapter 增加 Run scope，用于 Job 异常说明和基于全量确定性投影的聚合归因。
+- AEO 产品入口调整为 Job 整体审计与 Trace 轨迹审计；Trial API 仅作为 Trace 兼容数据源。
+
+### Compatibility
+
+- Harbor/Pier 文件提取 CLI、`trajectory-audit-v2` 规则和机器 schema `1` 保持不变。
+- AEO 请求 schema 继续使用 `aeo-audit-agent-request/1.0`。
+
+## [2.1.0] - 2026-09-28
+
+### Added
+
+- 增加 AEO `AnalysisAgentAdapter` 结构化 facts/evidence 输入与 hypothesis 输出规范。
+- 明确 AEO 自动分析、人工重分析、证据引用、状态展示和权威结果隔离边界。
+
+### Compatibility
+
+- Harbor/Pier 文件提取 CLI、`trajectory-audit-v2` 规则和机器 schema `1` 保持不变。
+- AEO 集成使用 `aeo-audit-agent-request/1.0`，方法版本提升为 `2.1.0`。
+
 ## [2.0.0] - 2026-09-28
 
 ### Added

@@ -23,6 +23,7 @@ python3 scripts/audit_trajectories.py INPUT [INPUT ...] \
 ## 文档路由
 
 - 所有任务：[证据与可分析性](references/core/evidence-and-readiness.md)；Harbor/BitFun/OpenCode 输入再读 [Adapter](references/adapters/harbor.md)。
+- AEO `AnalysisAgentAdapter` 的结构化 facts/evidence 输入读 [AEO Adapter](references/adapters/aeo.md)；不要把裁剪后的 AEO Trace ZIP 伪装成 Harbor Trial 目录。
 - 环境或作弊：[环境](references/audits/environment.md) 或 [评测完整性](references/audits/evaluation-integrity.md)。
 - Token、成本或耗时：[Token 与成本](references/audits/token-and-cost.md)、[耗时](references/audits/latency.md)；跨 trial 时再读 [聚合](references/aggregation.md)。
 - 得分或 verifier：[得分与 verifier](references/audits/score-and-verifier.md)。
