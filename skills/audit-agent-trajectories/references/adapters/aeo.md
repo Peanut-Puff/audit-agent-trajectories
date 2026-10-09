@@ -23,37 +23,44 @@ Agent 投影，不能通过改名为 `agent/trajectory.json` 冒充完整 Trial 
 任务契约、关键 patch 或 reasoning/tool evidence 时，根因保持 indeterminate。`infra_failed`
 且没有可评价 patch 时只解释故障和重跑条件，不写行为根因。
 
+## Runtime profile
+
+AEO 宿主不得复制方法论 prompt。仓库使用
+[`aeo-runtime-prompt.md`](./aeo-runtime-prompt.md) 作为权威运行时指令，并通过
+`scripts/build_aeo_profile.py` 生成 `runtime/aeo-profile.json`。profile 固定：
+
+- `schemaVersion=aeo-analysis-methodology-profile/1.0`；
+- `externalAgent=audit-agent-trajectories`；
+- `methodologyVersion`，与仓库 `VERSION` 一致；
+- `requestSchemaVersion=aeo-audit-agent-input/1.0`；
+- `responseLanguage=zh-CN`；
+- 支持的 task type 与完整 system prompt。
+
+宿主启动时必须校验 profile SHA-256，并把 profile 版本纳入 adapter 版本或 input hash。
+本地开发可以直接读取当前 skill 目录中的 profile；部署环境必须复制同一不可变字节，不能依赖
+开发机绝对路径或可变 `latest`。
+
 ## 请求与响应
 
-内置 AEO 插件向固定后台 endpoint 发送 `aeo-audit-agent-request/1.0`：
-
-```json
-{
-  "schemaVersion": "aeo-audit-agent-request/1.0",
-  "methodologyVersion": "2.2.0",
-  "model": "trajectory-audit",
-  "instructions": "<versioned audit instructions>",
-  "input": { "scopeType": "trial", "facts": {}, "evidence": [] },
-  "responseSchema": {},
-  "maxOutputTokens": 2048
-}
-```
-
-Endpoint 返回 AEO `AnalysisAgentAnalyzeResult`，可以直接返回对象，也可以使用单层
-`{"result": <object>}`。每个 item 必须：
+Profile 不规定 HTTP、OpenAI、ACP 或 native SDK transport。AEO 内置插件当前使用
+OpenAI-compatible Chat Completions：system message 来自 profile，user message 携带版本化
+`AnalysisAgentAnalyzeInput`、methodology version 和响应 schema。宿主从 provider envelope 中
+提取 JSON，再校验为 AEO `AnalysisAgentAnalyzeResult`。每个 item 必须：
 
 - `kind` 属于请求的 `taskTypes`；
 - `evidenceKeys` 只引用请求中存在的 key；
 - `hypothesis` 固定为 `true`；
 - `externalAgent`、`model` 与 AEO allowlist 一致；
+- `title/detail` 使用简体中文；
 - 使用“观察到”“与……一致”“无法区分”，不把 candidate 升级为 finding。
 
-HTTP endpoint 必须使用 HTTPS；只有 loopback 允许 HTTP。API key 只进入 Authorization
-header，不得进入 prompt、请求 JSON、普通日志或 AnalysisResult。
+HTTP endpoint 默认使用 HTTPS；本地/测试的非 loopback HTTP 兼容必须由宿主显式开启，且生产
+环境拒绝。API key 只进入 Authorization header，不得进入 profile、prompt、请求 JSON、普通
+日志或 AnalysisResult。
 
 ## AEO 生命周期
 
-- 插件启用后，只自动分析激活时间之后新生成的 Trial feature 和 Job snapshot。
+- 插件启用后，自动分析激活时间之后新生成的 Job snapshot，以及带 Trace 且 outcome 为 `failed` 的 Trial feature；通过和其他非失败 Trial 只在管理员显式请求后分析。
 - 历史 Run/Trial 由管理员显式请求；相同 adapter、model、policy 和 input hash 幂等复用。
 - 插件失败只改变 Agent AnalysisJob 状态，不影响确定性 Trial、Trace、Job 或 Verifier。
 - Web 在 Job 页面展示“整体审计”，在 Trace Viewer 展示“轨迹审计”；item 均标记为 Agent 推测，并保留 adapter、模型、policy、input hash 和 evidence。Trial 页面不重复展示。

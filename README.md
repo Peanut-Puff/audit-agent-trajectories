@@ -2,7 +2,7 @@
 
 面向 Harbor、DeepSWE、Pier 及类似 coding-agent evaluation 的证据化轨迹审计 skill。它先判断数据的可分析性与可比性，再分别审计环境、评测完整性、Token、耗时、得分、交付链、失败模式和首个 consequential break。
 
-当前版本：`v2.2.0`。
+当前版本：`v2.3.0`。
 
 ## 安装
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 SCRIPT = Path(__file__).with_name("audit_trajectories.py")
+PROFILE = Path(__file__).parents[1] / "runtime" / "aeo-profile.json"
 SPEC = importlib.util.spec_from_file_location("audit_trajectories", SCRIPT)
 assert SPEC and SPEC.loader
 audit = importlib.util.module_from_spec(SPEC)
@@ -116,6 +117,18 @@ def make_trial(
 
 
 class AuditTrajectoriesTests(unittest.TestCase):
+    def test_aeo_runtime_profile_uses_current_methodology_and_chinese_output(self) -> None:
+        profile = json.loads(PROFILE.read_text(encoding="utf-8"))
+
+        self.assertEqual(profile["externalAgent"], "audit-agent-trajectories")
+        self.assertEqual(profile["schemaVersion"], "aeo-analysis-methodology-profile/1.0")
+        self.assertEqual(profile["methodologyVersion"], "2.3.0")
+        self.assertEqual(profile["requestSchemaVersion"], "aeo-audit-agent-input/1.0")
+        self.assertEqual(profile["responseLanguage"], "zh-CN")
+        self.assertIn("job_attribution_summary", profile["supportedTaskTypes"])
+        self.assertIn("Simplified Chinese", profile["systemPrompt"])
+        self.assertNotIn("{{METHODOLOGY_VERSION}}", profile["systemPrompt"])
+
     def test_bitfun_and_opencode_paths_and_commands(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)
@@ -173,7 +186,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             self.assertIn("evaluation_artifact_mutation_candidate", candidate_types)
             access_results = {row["details"].get("access_result") for row in candidates if row["candidate_type"] == "external_access_candidate"}
             self.assertEqual(access_results, {"failure", "success"})
-            self.assertTrue(all(row["methodology_version"] == "2.2.0" for row in candidates))
+            self.assertTrue(all(row["methodology_version"] == "2.3.0" for row in candidates))
             self.assertNotIn("top-secret-token", rendered)
             self.assertNotIn("another-secret", rendered)
             self.assertNotIn("user:password", rendered)
@@ -238,7 +251,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             args = argparse.Namespace(inputs=[job], output=output, mode="job", depth="standard", focus="all")
             audit.run(args)
             manifest = json.loads((output / "generated" / "manifest.json").read_text(encoding="utf-8"))
-            self.assertEqual(manifest["methodology_version"], "2.2.0")
+            self.assertEqual(manifest["methodology_version"], "2.3.0")
             self.assertEqual(manifest["rule_version"], "trajectory-audit-v2")
             report = output / "report.md"
             findings = output / "adjudicated" / "findings.jsonl"

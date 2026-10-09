@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,8 +43,11 @@ def main() -> int:
         ENTRY,
         SKILL / "agents" / "openai.yaml",
         SKILL / "references" / "methodology-index.md",
+        SKILL / "references" / "adapters" / "aeo-runtime-prompt.md",
+        SKILL / "runtime" / "aeo-profile.json",
         SKILL / "scripts" / "audit_trajectories.py",
         SKILL / "scripts" / "test_audit_trajectories.py",
+        ROOT / "scripts" / "build_aeo_profile.py",
     ]
     for path in required:
         if not path.is_file():
@@ -68,8 +72,24 @@ def main() -> int:
         compile(script_text, str(SKILL / "scripts" / "audit_trajectories.py"), "exec")
         test_text = (SKILL / "scripts" / "test_audit_trajectories.py").read_text(encoding="utf-8")
         compile(test_text, str(SKILL / "scripts" / "test_audit_trajectories.py"), "exec")
+        profile_builder = (ROOT / "scripts" / "build_aeo_profile.py").read_text(encoding="utf-8")
+        compile(profile_builder, str(ROOT / "scripts" / "build_aeo_profile.py"), "exec")
     except SyntaxError as error:
         fail(f"Python syntax error: {error}", errors)
+
+    profile_check = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "build_aeo_profile.py"),
+            "--check",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if profile_check.returncode:
+        fail(profile_check.stderr.strip() or "AEO runtime profile is stale", errors)
 
     all_docs = {path.resolve() for path in SKILL.rglob("*.md")}
     reachable: set[Path] = set()

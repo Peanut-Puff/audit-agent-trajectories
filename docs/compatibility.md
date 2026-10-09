@@ -24,7 +24,7 @@
 - Codex 和 Claude Code 的隔离项目安装会保留完整 skill 目录。
 - BitFun 的 skill parser 接受同一 `SKILL.md`，其 registry 扫描 `.bitfun/.claude/.codex/.agents` 等项目目录。
 - 单 trial、单 job 和配对 job 的 extractor 测试不依赖宿主。
-- AEO 使用 `aeo-audit-agent-request/1.0`，不要求把 Canonical Trace 投影转换为 Harbor 目录。
+- AEO 使用 skill 生成并由 SHA-256 固定的 `audit-agent-trajectories-aeo-profile/1.0`；宿主 transport 可以是 OpenAI-compatible、ACP 或 native SDK，不要求把 Canonical Trace 投影转换为 Harbor 目录。
 
 ## 宿主差异
 

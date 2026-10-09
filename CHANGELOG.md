@@ -2,6 +2,17 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.3.0] - 2026-10-08
+
+### Added
+
+- 增加由 skill 权威 prompt 构建的确定性 `aeo-analysis-methodology-profile/1.0` runtime profile，包含方法版本、输入 schema、任务类型和中文输出约束。
+- 增加 profile 漂移校验，使 AEO 可以按版本与 SHA-256 直接加载方法产物，而不复制方法论 prompt。
+
+### Changed
+
+- AEO adapter 文档改为 transport-neutral 方法 profile；HTTP/OpenAI transport 继续由宿主插件负责。
+
 ## [2.2.0] - 2026-09-29
 
 ### Added
