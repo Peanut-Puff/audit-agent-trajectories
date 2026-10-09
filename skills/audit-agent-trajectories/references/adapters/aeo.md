@@ -68,11 +68,18 @@ HTTP endpoint 默认使用 HTTPS；本地/测试的非 loopback HTTP 兼容必�
 
 ## Run scope
 
-Run scope 固定请求 `job_anomaly_summary` 与 `job_attribution_summary`：
+Run scope 固定请求以下九个维度，并要求每个维度恰好返回一个 item：
 
-- 异常说明只读取不可变 Job snapshot 的 outcome、coverage、Token、耗时、Trace 和 Patch 指标；
-- 聚合归因只汇总 Run 当前 effective Attempt 的全量已有确定性 Trial Root Cause/环境噪声，并明确分母和缺失；
-- 最多 100 条 Trial evidence 用于下钻示例，不得把这批 evidence 当作全量机制样本；
+- `job_health_summary`：健康与逐维度 coverage；
+- `job_score_summary`：Canonical outcome、可靠性和 Verifier 事实；
+- `job_environment_summary`：环境事件、Agent 恢复行为和责任边界；
+- `job_integrity_summary`：实际外联/评分链证据与候选信号的区分，不把无候选写成合规证明；
+- `job_token_cost_summary`：Token 账本、Cache 口径、成本值与缺失覆盖；
+- `job_latency_summary`：完成/删失样本、ATIF/typed timing 与缺失覆盖；
+- `job_delivery_summary`：Patch、capture、validation 和交付覆盖；
+- `job_anomaly_summary`：只读取不可变 Job snapshot 的全量跨维度异常；
+- `job_attribution_summary`：只汇总当前 effective Attempt 的全量已有确定性 Trial Root Cause，并明确已归因、未归因和分母；
+- 最多 100 条 Job/Trial/Trace evidence 用于下钻示例，不得把这批 evidence 当作全量机制样本；
 - 不把候选计数、失败测试数或截断 evidence 写成全量根因率。
 
 ## 完成检查

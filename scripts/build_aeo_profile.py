@@ -20,6 +20,13 @@ SUPPORTED_TASK_TYPES = (
     "behavior_explanation",
     "root_cause_hypothesis",
     "paired_difference_summary",
+    "job_health_summary",
+    "job_score_summary",
+    "job_environment_summary",
+    "job_integrity_summary",
+    "job_token_cost_summary",
+    "job_latency_summary",
+    "job_delivery_summary",
     "job_anomaly_summary",
     "job_attribution_summary",
 )

@@ -122,10 +122,13 @@ class AuditTrajectoriesTests(unittest.TestCase):
 
         self.assertEqual(profile["externalAgent"], "audit-agent-trajectories")
         self.assertEqual(profile["schemaVersion"], "aeo-analysis-methodology-profile/1.0")
-        self.assertEqual(profile["methodologyVersion"], "2.3.0")
+        self.assertEqual(profile["methodologyVersion"], "2.4.0")
         self.assertEqual(profile["requestSchemaVersion"], "aeo-audit-agent-input/1.0")
         self.assertEqual(profile["responseLanguage"], "zh-CN")
         self.assertIn("job_attribution_summary", profile["supportedTaskTypes"])
+        self.assertIn("job_integrity_summary", profile["supportedTaskTypes"])
+        self.assertIn("job_token_cost_summary", profile["supportedTaskTypes"])
+        self.assertIn("exactly one item", profile["systemPrompt"])
         self.assertIn("Simplified Chinese", profile["systemPrompt"])
         self.assertNotIn("{{METHODOLOGY_VERSION}}", profile["systemPrompt"])
 
@@ -186,7 +189,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             self.assertIn("evaluation_artifact_mutation_candidate", candidate_types)
             access_results = {row["details"].get("access_result") for row in candidates if row["candidate_type"] == "external_access_candidate"}
             self.assertEqual(access_results, {"failure", "success"})
-            self.assertTrue(all(row["methodology_version"] == "2.3.0" for row in candidates))
+            self.assertTrue(all(row["methodology_version"] == "2.4.0" for row in candidates))
             self.assertNotIn("top-secret-token", rendered)
             self.assertNotIn("another-secret", rendered)
             self.assertNotIn("user:password", rendered)
@@ -251,7 +254,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             args = argparse.Namespace(inputs=[job], output=output, mode="job", depth="standard", focus="all")
             audit.run(args)
             manifest = json.loads((output / "generated" / "manifest.json").read_text(encoding="utf-8"))
-            self.assertEqual(manifest["methodology_version"], "2.3.0")
+            self.assertEqual(manifest["methodology_version"], "2.4.0")
             self.assertEqual(manifest["rule_version"], "trajectory-audit-v2")
             report = output / "report.md"
             findings = output / "adjudicated" / "findings.jsonl"

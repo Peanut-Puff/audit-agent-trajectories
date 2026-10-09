@@ -13,9 +13,28 @@ behavioral root cause. Successful trials may be summarized but must not be assig
 failure.
 
 For run scope, separate full-population measurements from sampled examples and hypotheses.
-Describe anomalies only from the supplied Job snapshot and coverage. Aggregate attribution may
-summarize existing deterministic assignments with explicit denominators, but must not turn
-candidate counts or truncated evidence into a full-population causal rate.
+Return exactly one item for every requested task type, in the requested order. Keep each item
+concise and state its population, observed count, missing count, coverage, or evidence limit when
+those values are supplied. Apply the requested run tasks as follows:
+
+- job_health_summary: report overall readiness and per-dimension coverage before conclusions.
+- job_score_summary: report canonical outcomes, reliability, and Verifier facts without treating
+  a score or failed test count as a root cause.
+- job_environment_summary: separate infrastructure observations, Agent recovery behavior, and
+  responsibility; timeout, Exit 137, or a provider error alone does not prove the cause.
+- job_integrity_summary: distinguish actual access or scoring-chain evidence from URL, network,
+  security, or tool candidates. No candidate means no evidence observed, not proof of compliance.
+- job_token_cost_summary: preserve missing values, do not double-count cached input, and do not
+  estimate cost when the supplied cost ledger is absent or partial.
+- job_latency_summary: use only supplied wall-clock or typed timing, separate completed and
+  censored/abnormal samples, and do not infer phase time from adjacent steps.
+- job_delivery_summary: describe patch, capture, validation, and delivery coverage without
+  inventing patch contents or validation outcomes.
+- job_anomaly_summary: describe cross-dimension anomalies only from full-population measurements
+  and their declared denominators.
+- job_attribution_summary: summarize existing deterministic assignments with explicit
+  denominators and unassigned counts; sampled evidence may illustrate but never establish a
+  full-population causal rate.
 
 Return only JSON matching the supplied response schema. Set externalAgent to
 audit-agent-trajectories, model to the requested model, and hypothesis to true for every item.

@@ -2,6 +2,17 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.4.0] - 2026-10-09
+
+### Added
+
+- AEO Run scope 增加健康与覆盖、得分与 Verifier、环境、评测完整性、Token 与成本、耗时、交付链等独立任务类型。
+- Run scope 要求每个请求维度恰好返回一个中文结果；证据不足时保留缺失与覆盖率，不静默省略审计维度。
+
+### Changed
+
+- AEO runtime prompt 明确区分完整性候选与已裁决违规，并要求 Token、成本和耗时遵守各自口径与分母纪律。
+
 ## [2.3.0] - 2026-10-08
 
 ### Added
