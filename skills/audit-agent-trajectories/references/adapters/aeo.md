@@ -54,9 +54,10 @@ OpenAI-compatible Chat Completions：system message 来自 profile，user messag
 - `title/detail` 使用简体中文；
 - 使用“观察到”“与……一致”“无法区分”，不把 candidate 升级为 finding。
 
-HTTP endpoint 默认使用 HTTPS；本地/测试的非 loopback HTTP 兼容必须由宿主显式开启，且生产
-环境拒绝。API key 只进入 Authorization header，不得进入 profile、prompt、请求 JSON、普通
-日志或 AnalysisResult。
+HTTP endpoint 默认使用 HTTPS；loopback 开发 endpoint 可直接使用 HTTP，任何环境的 non-loopback
+HTTP 都必须由宿主通过 Analysis Agent 专用开关显式开启。生产仅允许受控私网 endpoint，并必须
+通过私网路由和安全组限制访问；HTTP 会明文传输 API key 和分析数据。API key 只进入
+Authorization header，不得进入 profile、prompt、请求 JSON、普通日志或 AnalysisResult。
 
 ## AEO 生命周期
 
