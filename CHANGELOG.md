@@ -2,6 +2,19 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.5.0] - 2026-10-15
+
+### Added
+
+- AEO Run scope 增加数据健康、结果、Verifier、执行健康、耗时效率、模型资源、Tool 过程、交付验证、风险优化九个客观维度。
+- 每个新维度在确定性统计之上提供受证据约束的分析解释、证据限制和可验收优化建议。
+
+### Changed
+
+- 单次评测默认布局移除依赖多个正式 repeat 的稳定性维度；旧九维 task kind 保留兼容。
+- Dataset 或 Binding 不支持某类遥测时保持 `unsupported|partial|absent`，不省略维度或补零。
+- 当前客观布局把模型输入限制为 30 条 evidence 和 20 个 Trial 示例；旧冻结布局保留原上限。
+
 ## [2.4.0] - 2026-10-09
 
 ### Added

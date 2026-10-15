@@ -14,7 +14,7 @@ Agent 投影，不能通过改名为 `agent/trajectory.json` 冒充完整 Trial 
 请求使用 AEO `AnalysisAgentAnalyzeInput`：
 
 - `facts` 只包含确定性 Trial/Trace feature、outcome、环境状态、版本和已有 Root Cause；
-- `evidence` 最多 100 条，每条有稳定 key、类型、标签和有界摘要；
+- 当前客观布局的 `evidence` 最多 30 条且 Trial 示例最多 20 个，每条有稳定 key、类型、标签和有界摘要；旧冻结布局最多 100 条；
 - `taskTypes` 限制本次允许返回的分析类型；
 - `model`、`policyVersion`、Token 和费用上限由 AEO 后台冻结；
 - 输入已经脱敏，但仍不得在输出中复制不必要的长命令、日志或疑似凭据。
@@ -69,19 +69,23 @@ Authorization header，不得进入 profile、prompt、请求 JSON、普通日�
 
 ## Run scope
 
-Run scope 固定请求以下九个维度，并要求每个维度恰好返回一个 item：
+当前 AEO Run scope 固定请求以下九个客观维度，并要求每个维度恰好返回一个 item：
 
-- `job_health_summary`：健康与逐维度 coverage；
-- `job_score_summary`：Canonical outcome、可靠性和 Verifier 事实；
-- `job_environment_summary`：环境事件、Agent 恢复行为和责任边界；
-- `job_integrity_summary`：实际外联/评分链证据与候选信号的区分，不把无候选写成合规证明；
-- `job_token_cost_summary`：Token 账本、Cache 口径、成本值与缺失覆盖；
-- `job_latency_summary`：完成/删失样本、ATIF/typed timing 与缺失覆盖；
-- `job_delivery_summary`：Patch、capture、validation 和交付覆盖；
-- `job_anomaly_summary`：只读取不可变 Job snapshot 的全量跨维度异常；
-- `job_attribution_summary`：只汇总当前 effective Attempt 的全量已有确定性 Trial Root Cause，并明确已归因、未归因和分母；
-- 最多 100 条 Job/Trial/Trace evidence 用于下钻示例，不得把这批 evidence 当作全量机制样本；
+- `job_data_health_summary`：总体、Trace/feature/telemetry coverage 与缺失限制；
+- `job_outcome_summary`：pass@1 与 Canonical outcome，不依赖多个正式 repeat；
+- `job_verifier_summary`：Verifier 结论、覆盖和错误；
+- `job_execution_health_summary`：执行终态、恢复、超时、错误域和环境候选；
+- `job_latency_efficiency_summary`：总耗时、Case 分布和删失边界；
+- `job_model_resource_summary`：Token、Cache、Reasoning、轮次、成本和 Case 分布；
+- `job_tool_process_summary`：Tool 分类、结果、重试、workspace 与 validation 事件；
+- `job_delivery_validation_summary`：Patch、capture、改动范围和验证覆盖；
+- `job_risk_optimization_summary`：跨维度候选、指标驱动控制和验收方式；
+- 最多 30 条 Job/Trial/Trace evidence 用于当前布局的下钻示例，旧布局上限 100；不得把这批 evidence 当作全量机制样本；
 - 不把候选计数、失败测试数或截断 evidence 写成全量根因率。
+
+每项 detail 固定包含“观测事实、分析解释、优化建议、证据限制”。优化建议必须绑定触发
+指标、具体动作、目标指标和验证方法。2.4 的九个旧 task kind 继续保留在 profile 中，使新
+Skill 可先导入旧 AEO；新 AEO 选择当前九维，历史方案仍按冻结的旧 task kind 执行和解释。
 
 ## 完成检查
 

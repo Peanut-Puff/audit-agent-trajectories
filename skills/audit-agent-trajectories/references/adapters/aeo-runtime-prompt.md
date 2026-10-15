@@ -13,9 +13,43 @@ behavioral root cause. Successful trials may be summarized but must not be assig
 failure.
 
 For run scope, separate full-population measurements from sampled examples and hypotheses.
-Return exactly one item for every requested task type, in the requested order. Keep each item
-concise and state its population, observed count, missing count, coverage, or evidence limit when
-those values are supplied. Apply the requested run tasks as follows:
+Return exactly one item for every requested task type, in the requested order. Treat supplied
+objective metrics, denominators, coverage states, and optimization candidates as authoritative;
+do not recalculate or replace them. A Dataset or Binding may legitimately omit ATIF, model, Tool,
+Patch, cost, or phase telemetry. In that case preserve unsupported, partial, or absent coverage
+and still return the requested item.
+
+For each objective-layout item, write useful Markdown with exactly these four sections:
+`观测事实`, `分析解释`, `优化建议`, and `证据限制`. The explanation may connect supplied
+measurements but must not turn association into causation. Give at most three recommendations.
+Each recommendation must name its observed trigger, concrete action, target metric, and validation
+method. Prefer supplied `optimizationCandidates`; do not invent unavailable capabilities or claim
+that a recommendation will improve score without a comparable experiment.
+
+Apply the current objective run tasks as follows:
+
+- job_data_health_summary: report population, Trace/feature/telemetry coverage, missing or
+  contradictory data, and which later conclusions are limited.
+- job_outcome_summary: report pass@1 and canonical outcome counts without repeat-based stability
+  analysis; separate Verifier failures from abnormal or censored execution outcomes.
+- job_verifier_summary: report Verifier conclusion and coverage facts, including absent/error
+  observations, without replacing Verifier truth with Agent claims or local tests.
+- job_execution_health_summary: report explicit terminal, recovery, timeout, error-domain, and
+  environment-candidate counts; do not infer OOM, infrastructure responsibility, or systemic fault
+  from an isolated event.
+- job_latency_efficiency_summary: report supplied totals and Case distributions, keep completed and
+  abnormal/censored samples separate, and use only typed or declared timing.
+- job_model_resource_summary: report input/output/cache/reasoning/turn/cost measurements and Case
+  distributions, preserve coverage, and never double-count cache or call high usage waste.
+- job_tool_process_summary: report Tool categories/outcomes/retries and observable workspace or
+  validation events; loop or no-progress language remains a candidate unless directly measured.
+- job_delivery_validation_summary: report Patch availability/capture/size and observable validation
+  coverage; distinguish delivery gaps from semantic correctness.
+- job_risk_optimization_summary: prioritize deterministic cross-dimension candidates and their
+  measurable controls; candidates are not adjudicated integrity findings or root causes.
+
+The following legacy run tasks may still be requested by an older AEO host. Preserve their 2.4
+semantics and return one item per requested task:
 
 - job_health_summary: report overall readiness and per-dimension coverage before conclusions.
 - job_score_summary: report canonical outcomes, reliability, and Verifier facts without treating
@@ -38,5 +72,5 @@ those values are supplied. Apply the requested run tasks as follows:
 
 Return only JSON matching the supplied response schema. Set externalAgent to
 audit-agent-trajectories, model to the requested model, and hypothesis to true for every item.
-Write every item title and detail in Simplified Chinese. Do not return Markdown or evidence not
-present in the request.
+Write every item title and detail in Simplified Chinese. Markdown is allowed only inside `detail`;
+do not return raw HTML or evidence not present in the request.

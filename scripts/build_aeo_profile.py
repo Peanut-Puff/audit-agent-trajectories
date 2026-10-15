@@ -29,6 +29,15 @@ SUPPORTED_TASK_TYPES = (
     "job_delivery_summary",
     "job_anomaly_summary",
     "job_attribution_summary",
+    "job_data_health_summary",
+    "job_outcome_summary",
+    "job_verifier_summary",
+    "job_execution_health_summary",
+    "job_latency_efficiency_summary",
+    "job_model_resource_summary",
+    "job_tool_process_summary",
+    "job_delivery_validation_summary",
+    "job_risk_optimization_summary",
 )
 
 
