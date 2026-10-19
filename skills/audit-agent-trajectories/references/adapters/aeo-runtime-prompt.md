@@ -19,34 +19,58 @@ do not recalculate or replace them. A Dataset or Binding may legitimately omit A
 Patch, cost, or phase telemetry. In that case preserve unsupported, partial, or absent coverage
 and still return the requested item.
 
-For each objective-layout item, write useful Markdown with exactly these four sections:
-`观测事实`, `分析解释`, `优化建议`, and `证据限制`. The explanation may connect supplied
-measurements but must not turn association into causation. Give at most three recommendations.
-Each recommendation must name its observed trigger, concrete action, target metric, and validation
-method. Prefer supplied `optimizationCandidates`; do not invent unavailable capabilities or claim
-that a recommendation will improve score without a comparable experiment.
+For the objective layout, act as a decision aid rather than a metric narrator. The deterministic
+tables already display totals and distributions. Do not repeat every supplied number. Use
+`caseCohorts`, `prioritizedFindings`, `caseExamples`, and their evidence keys to identify what an
+analyst should inspect first. Treat a cohort as a full-population candidate grouping, not a shared
+root cause. Treat a selected success Case as a control example, not a prescribed implementation.
+
+Every objective-layout title must state a finding, not repeat the dimension name. Write compact
+Markdown with exactly four level-2 headings: `## 关键结论`, `## 影响范围`, `## 行动`, and
+`## 证据边界`.
+
+- `关键结论`: one or two claims that add interpretation beyond the visible metrics.
+- `影响范围`: give `affected/eligible`, exact supplied Case IDs or titles, and whether the list is
+  complete or examples only. Never substitute opaque Trial IDs when a Case identity is supplied.
+- `行动`: include at most two actions. Each action must name `P0|P1|P2`, owner
+  (`platform|telemetry|verifier|agent`), exact Case scope, diagnostic question or concrete change,
+  target metric, and validation method. Prefer supplied prioritized findings and optimization
+  candidates. If none is evidence-backed, write `无需动作` or state the blocking evidence gap.
+- `证据边界`: state the strongest alternative explanation, unavailable evidence, and whether the
+  claim is a measurement, candidate, or hypothesis.
+
+Never recommend only “review”, “rerun”, “compare P90”, or “inspect failures”. Such verbs require
+named Cases and a specific question the action will answer. Do not turn Verifier failure,
+`solution_incorrect`, high usage, a Tool error, or absent delivery telemetry into a behavioral root
+cause. `delivery_evidence_unavailable` means the platform cannot judge the delivery chain; it does
+not mean the Agent produced no Patch. Ignore repeat/reliability fields for objective tasks even if
+an older host includes them.
+
+Use `confidence` as evidence strength for the weakest material claim in the item: about 0.9 for a
+complete direct measurement, about 0.7 for a bounded deterministic candidate, and at most 0.5 for
+an unresolved hypothesis. It is not a probability of correctness.
 
 Apply the current objective run tasks as follows:
 
-- job_data_health_summary: report population, Trace/feature/telemetry coverage, missing or
-  contradictory data, and which later conclusions are limited.
-- job_outcome_summary: report pass@1 and canonical outcome counts without repeat-based stability
-  analysis; separate Verifier failures from abnormal or censored execution outcomes.
-- job_verifier_summary: report Verifier conclusion and coverage facts, including absent/error
-  observations, without replacing Verifier truth with Agent claims or local tests.
-- job_execution_health_summary: report explicit terminal, recovery, timeout, error-domain, and
-  environment-candidate counts; do not infer OOM, infrastructure responsibility, or systemic fault
-  from an isolated event.
-- job_latency_efficiency_summary: report supplied totals and Case distributions, keep completed and
-  abnormal/censored samples separate, and use only typed or declared timing.
-- job_model_resource_summary: report input/output/cache/reasoning/turn/cost measurements and Case
-  distributions, preserve coverage, and never double-count cache or call high usage waste.
-- job_tool_process_summary: report Tool categories/outcomes/retries and observable workspace or
-  validation events; loop or no-progress language remains a candidate unless directly measured.
-- job_delivery_validation_summary: report Patch availability/capture/size and observable validation
-  coverage; distinguish delivery gaps from semantic correctness.
-- job_risk_optimization_summary: prioritize deterministic cross-dimension candidates and their
-  measurable controls; candidates are not adjudicated integrity findings or root causes.
+- job_data_health_summary: identify only the evidence gaps that block or weaken a later decision;
+  assign telemetry/platform actions to precise affected scope.
+- job_outcome_summary: separate Verifier-rejected Cases from abnormal execution and state which
+  group should be investigated first; do not discuss repeat stability.
+- job_verifier_summary: identify missing/error coverage and the exact rejected Case scope, but do
+  not rewrite rejection as a semantic mechanism without Verifier detail.
+- job_execution_health_summary: prioritize explicit abnormal Cases and recovery evidence; do not
+  infer OOM, infrastructure responsibility, or systemic fault from an isolated event.
+- job_latency_efficiency_summary: name only failed or abnormal Cases that actually enter the
+  supplied latency-tail cohort and compare them with supplied success controls.
+- job_model_resource_summary: name only failed Cases in the supplied usage-tail cohort; preserve
+  cache and coverage semantics and never call high usage waste.
+- job_tool_process_summary: use per-Case Tool problems and process coverage; do not propose a
+  global Tool policy when category-to-failure attribution is unavailable.
+- job_delivery_validation_summary: separate confirmed no-Patch, changed-without-observed-validation,
+  and delivery-evidence-unavailable cohorts. Missing telemetry is a platform limitation.
+- job_risk_optimization_summary: provide the executive priority list across owners, normally no
+  more than three actions. Keep outcome endpoints, candidates, integrity signals, and root-cause
+  hypotheses separate.
 
 The following legacy run tasks may still be requested by an older AEO host. Preserve their 2.4
 semantics and return one item per requested task:

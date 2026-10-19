@@ -13,8 +13,10 @@ Agent 投影，不能通过改名为 `agent/trajectory.json` 冒充完整 Trial 
 
 请求使用 AEO `AnalysisAgentAnalyzeInput`：
 
-- `facts` 只包含确定性 Trial/Trace feature、outcome、环境状态、版本和已有 Root Cause；
-- 当前客观布局的 `evidence` 最多 30 条且 Trial 示例最多 20 个，每条有稳定 key、类型、标签和有界摘要；旧冻结布局最多 100 条；
+- `facts` 只包含确定性 Trial/Trace feature、outcome、环境状态、版本，以及当前布局的
+  Case 行、full-population candidate cohort 和优先行动；Verifier endpoint 不能冒充 Root Cause；
+- 当前客观布局的 `evidence` 最多 30 条且 Case 示例最多 20 个，先选异常和多信号失败，
+  再选普通 Verifier fail 与成功对照；每条有稳定 key、类型、标签和有界摘要；旧冻结布局最多 100 条；
 - `taskTypes` 限制本次允许返回的分析类型；
 - `model`、`policyVersion`、Token 和费用上限由 AEO 后台冻结；
 - 输入已经脱敏，但仍不得在输出中复制不必要的长命令、日志或疑似凭据。
@@ -61,10 +63,10 @@ Authorization header，不得进入 profile、prompt、请求 JSON、普通日�
 
 ## AEO 生命周期
 
-- 插件启用后，自动分析激活时间之后新生成的 Job snapshot，以及带 Trace 且 outcome 为 `failed` 的 Trial feature；通过和其他非失败 Trial 只在管理员显式请求后分析。
-- 历史 Run/Trial 由管理员显式请求；相同 adapter、model、policy 和 input hash 幂等复用。
+- 插件启用后，只自动分析激活时间之后新生成的 Run/Job snapshot。
+- 历史 Run 由登录用户首次显式请求，后续刷新仅管理员可执行；相同 adapter、model、policy 和 input hash 幂等复用。
 - 插件失败只改变 Agent AnalysisJob 状态，不影响确定性 Trial、Trace、Job 或 Verifier。
-- Web 在 Job 页面展示“整体审计”，在 Trace Viewer 展示“轨迹审计”；item 均标记为 Agent 推测，并保留 adapter、模型、policy、input hash 和 evidence。Trial 页面不重复展示。
+- Web 只在 Job 页面展示整体轨迹分析；Trial、Trace、Case、对比和报表不展示或触发 AI 分析。
 - 人工 Root Cause 只能通过 append-only Trial revision 保存，不能由插件直接修改。
 
 ## Run scope
@@ -79,12 +81,14 @@ Authorization header，不得进入 profile、prompt、请求 JSON、普通日�
 - `job_model_resource_summary`：Token、Cache、Reasoning、轮次、成本和 Case 分布；
 - `job_tool_process_summary`：Tool 分类、结果、重试、workspace 与 validation 事件；
 - `job_delivery_validation_summary`：Patch、capture、改动范围和验证覆盖；
-- `job_risk_optimization_summary`：跨维度候选、指标驱动控制和验收方式；
-- 最多 30 条 Job/Trial/Trace evidence 用于当前布局的下钻示例，旧布局上限 100；不得把这批 evidence 当作全量机制样本；
+- `job_risk_optimization_summary`：跨 owner 的优先结论、精确 Case 范围、控制和验收方式；
+- 最多 30 条 Job/Trial/Trace evidence 和 20 个分层 Case 示例用于当前布局，旧布局上限 100；
+  Case cohort 来自全量确定性事实，evidence 仍只是下钻样本；
 - 不把候选计数、失败测试数或截断 evidence 写成全量根因率。
 
-每项 detail 固定包含“观测事实、分析解释、优化建议、证据限制”。优化建议必须绑定触发
-指标、具体动作、目标指标和验证方法。2.4 的九个旧 task kind 继续保留在 profile 中，使新
+每项 detail 固定使用“## 关键结论/## 影响范围/## 行动/## 证据边界”二级标题。item 标题不能重复维度名；行动必须
+给出优先级、owner、精确 Case 范围、诊断问题或改动、目标指标和验证方法。没有证据支持的
+行动明确写“无需动作”或数据阻塞，禁止只写“复查、重跑、比较 P90”。2.4 的九个旧 task kind 继续保留在 profile 中，使新
 Skill 可先导入旧 AEO；新 AEO 选择当前九维，历史方案仍按冻结的旧 task kind 执行和解释。
 
 ## 完成检查
