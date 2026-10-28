@@ -20,7 +20,7 @@ from typing import Any, Iterable, Sequence
 
 SCRIPT_VERSION = "1.1.0"
 SCHEMA_VERSION = 1
-METHODOLOGY_VERSION = "2.6.0"
+METHODOLOGY_VERSION = "2.7.0"
 RULE_VERSION = "trajectory-audit-v2"
 BOOTSTRAP_SEED = 20260918
 BOOTSTRAP_SAMPLES = 10_000
@@ -304,12 +304,109 @@ def final_stream_model_usage(root: Path) -> tuple[dict[str, Any] | None, Path | 
     return None, None, 0
 
 
+def nonnegative_number(value: Any) -> int | float | None:
+    parsed = number(value)
+    return parsed if parsed is not None and parsed >= 0 else None
+
+
+def result_token_ledger(result: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
+    contexts: list[dict[str, Any]] = []
+    agent_result = result.get("agent_result")
+    if isinstance(agent_result, dict):
+        contexts.append(agent_result)
+    step_results = result.get("step_results")
+    if isinstance(step_results, list):
+        contexts.extend(
+            candidate
+            for step in step_results
+            if isinstance(step, dict)
+            and isinstance((candidate := step.get("agent_result")), dict)
+        )
+
+    def summed(key: str) -> int | float | None:
+        values = [value for item in contexts if (value := nonnegative_number(item.get(key))) is not None]
+        return sum(values) if values else None
+
+    values = {
+        "input_tokens": summed("n_input_tokens"),
+        "output_tokens": summed("n_output_tokens"),
+        "cache_read_tokens": summed("n_cache_tokens"),
+        "cache_creation_tokens": summed("n_cache_creation_tokens"),
+        "cost_usd": summed("cost_usd"),
+    }
+    evidences = []
+    for context in contexts:
+        metadata = context.get("metadata")
+        evidence = metadata.get("aeo_model_usage") if isinstance(metadata, dict) else None
+        evidences.append(evidence if isinstance(evidence, dict) else None)
+
+    confirmed_zero = False
+    if values["input_tokens"] == 0 and values["output_tokens"] == 0:
+        confirmed_zero = bool(evidences) and all(
+            isinstance(item, dict)
+            and (
+                (nonnegative_number(item.get("coveredRequestCount")) or 0) > 0
+                or (
+                    item.get("schemaVersion") == "harbor-model-usage/1.3"
+                    and nonnegative_number(item.get("requestCount")) == 0
+                    and (nonnegative_number(item.get("excludedRequestCount")) or 0) > 0
+                )
+            )
+            for item in evidences
+        )
+        if not confirmed_zero:
+            values = {key: None for key in values}
+
+    complete = bool(contexts) and len(evidences) == len(contexts) and all(
+        isinstance(item, dict)
+        and item.get("inputTokensComplete", True) is True
+        and item.get("outputTokensComplete", True) is True
+        and item.get("collectionComplete", True) is True
+        and nonnegative_number(item.get("requestCount"))
+        == nonnegative_number(item.get("coveredRequestCount"))
+        for item in evidences
+    )
+    observed = values["input_tokens"] is not None and values["output_tokens"] is not None
+    status = "complete" if complete and observed else ("partial" if observed else "missing")
+    request_count = sum(
+        nonnegative_number(item.get("requestCount")) or 0
+        for item in evidences if isinstance(item, dict)
+    ) if evidences else None
+    covered_request_count = sum(
+        nonnegative_number(item.get("coveredRequestCount")) or 0
+        for item in evidences if isinstance(item, dict)
+    ) if evidences else None
+    excluded_request_count = sum(
+        nonnegative_number(item.get("excludedRequestCount")) or 0
+        for item in evidences if isinstance(item, dict)
+    ) if evidences else None
+    coverage = {
+        "status": status,
+        "context_count": len(contexts),
+        "evidence_count": sum(isinstance(item, dict) for item in evidences),
+        "request_count": request_count,
+        "covered_request_count": covered_request_count,
+        "excluded_request_count": excluded_request_count,
+        "confirmed_zero": confirmed_zero,
+    }
+    warnings = []
+    if not contexts:
+        warnings.append("agent_result is missing")
+    elif status == "missing":
+        warnings.append("zero-filled or missing usage has no completed-request evidence")
+    elif status == "partial":
+        warnings.append("token request coverage is incomplete or unproven")
+    return values, coverage, warnings
+
+
 def extract_tokens(root: Path, result: dict[str, Any], trajectory: dict[str, Any], adapter: str) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
     warnings: list[str] = []
     prov: dict[str, Any] = {}
-    agent_result = result.get("agent_result") if isinstance(result.get("agent_result"), dict) else {}
     final_metrics = trajectory.get("final_metrics") if isinstance(trajectory.get("final_metrics"), dict) else {}
     model_usage, stream_path, stream_segments = final_stream_model_usage(root)
+    result_values, result_coverage, result_warnings = result_token_ledger(result)
+    if not model_usage:
+        warnings.extend(result_warnings)
 
     stream_values: dict[str, int | float | None] = {}
     if model_usage:
@@ -333,13 +430,6 @@ def extract_tokens(root: Path, result: dict[str, Any], trajectory: dict[str, Any
         "request_count": sum(number(item.get("request_count")) or 0 for item in stat_entries) if stat_entries else None,
         "session_count": sum(number(item.get("session_count")) or 0 for item in stat_entries) if stat_entries else None,
     }
-    result_values = {
-        "input_tokens": number(agent_result.get("n_input_tokens")),
-        "output_tokens": number(agent_result.get("n_output_tokens")),
-        "cache_read_tokens": number(agent_result.get("n_cache_tokens")),
-        "cache_creation_tokens": number(agent_result.get("n_cache_creation_tokens")),
-        "cost_usd": number(agent_result.get("cost_usd")),
-    }
     trajectory_values = {
         "input_tokens": number(final_metrics.get("total_prompt_tokens")),
         "output_tokens": number(final_metrics.get("total_completion_tokens")),
@@ -350,7 +440,11 @@ def extract_tokens(root: Path, result: dict[str, Any], trajectory: dict[str, Any
     if model_usage:
         primary, primary_path, primary_field = stream_values, stream_path, "last result.modelUsage"
     else:
-        primary, primary_path, primary_field = result_values, root / "result.json", "agent_result"
+        primary, primary_path, primary_field = (
+            result_values,
+            root / "result.json",
+            "agent_result+step_results[].agent_result",
+        )
 
     values: dict[str, Any] = {}
     for field in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "cost_usd"):
@@ -369,9 +463,40 @@ def extract_tokens(root: Path, result: dict[str, Any], trajectory: dict[str, Any
         values["total_tokens_excluding_cache"] = values["input_tokens"] + values["output_tokens"]
     else:
         values["total_tokens_excluding_cache"] = None
-    values["request_count"] = bitfun_values.get("request_count")
+    values["request_count"] = first_value(
+        bitfun_values.get("request_count"), result_coverage.get("request_count")
+    )
     values["session_count"] = bitfun_values.get("session_count")
     values["stream_result_segments"] = stream_segments or None
+    if model_usage and values["input_tokens"] is not None and values["output_tokens"] is not None:
+        token_status = "complete"
+    elif (
+        primary is result_values
+        and result_coverage["status"] != "missing"
+        and result_values["input_tokens"] is not None
+        and result_values["output_tokens"] is not None
+    ):
+        token_status = result_coverage["status"]
+    elif values["input_tokens"] is not None and values["output_tokens"] is not None:
+        token_status = "partial"
+    else:
+        token_status = "missing"
+    values["status"] = token_status
+    if model_usage:
+        authoritative_source = "raw_stream"
+    elif result_coverage["status"] != "missing":
+        authoritative_source = "result_agent_results"
+    elif bitfun_values.get("input_tokens") is not None or bitfun_values.get("output_tokens") is not None:
+        authoritative_source = "bitfun_stats_fallback"
+    elif trajectory_values.get("input_tokens") is not None or trajectory_values.get("output_tokens") is not None:
+        authoritative_source = "trajectory_fallback"
+    else:
+        authoritative_source = "missing"
+    values["coverage"] = {
+        **result_coverage,
+        "status": token_status,
+        "authoritative_source": authoritative_source,
+    }
 
     comparisons = [
         ("result", result_values),
@@ -646,8 +771,11 @@ def extract_trial(root: Path, job_root: Path) -> tuple[dict[str, Any], list[dict
     coverage["environment"] = "complete" if environment_type and (root / "trial.log").is_file() else ("partial" if environment_type else "absent")
     raw_integrity = bool((root / "agent" / "bitfun" / "request-traces.tar.gz").is_file() or (root / "agent" / "bitfun" / "request-traces").exists())
     coverage["integrity"] = "complete" if steps and raw_integrity else ("partial" if steps else "absent")
-    present_tokens = sum(tokens[field] is not None for field in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"))
-    coverage["tokens"] = "complete" if present_tokens == 4 else ("partial" if present_tokens else "absent")
+    coverage["tokens"] = {
+        "complete": "complete",
+        "partial": "partial",
+        "missing": "absent",
+    }.get(str(tokens.get("status")), "absent")
     present_phases = sum(value is not None for value in phase_times.values())
     coverage["latency"] = "complete" if duration is not None and present_phases >= 2 else ("partial" if duration is not None else "absent")
 
@@ -1105,6 +1233,7 @@ def flatten_trial(record: dict[str, Any]) -> dict[str, Any]:
         "p2p_passed": score["p2p_passed"], "p2p_total": score["p2p_total"],
         "input_tokens": record["tokens"]["input_tokens"], "output_tokens": record["tokens"]["output_tokens"],
         "cache_read_tokens": record["tokens"]["cache_read_tokens"], "cache_creation_tokens": record["tokens"]["cache_creation_tokens"],
+        "token_status": record["tokens"]["status"],
         "duration_sec": record["latency"]["duration_sec"], "censored": record["latency"]["censored"],
         "steps": record["process"]["steps"], "tool_calls": record["process"]["tool_calls"], "mutations": record["process"]["mutations"],
         "validations": record["process"]["validations"], "validation_after_last_mutation": record["process"]["validation_after_last_mutation"],
@@ -1169,6 +1298,7 @@ def parse_focus(value: str) -> set[str]:
 def run(args: argparse.Namespace) -> dict[str, Any]:
     inputs = [path.resolve() for path in args.inputs]
     output = args.output.resolve()
+    output_layout = getattr(args, "output_layout", "expanded")
     for path in inputs:
         if not path.is_dir():
             raise ValueError(f"input is not a directory: {path}")
@@ -1211,8 +1341,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     generated = output / "generated"
     adjudicated = output / "adjudicated"
-    generated.mkdir(parents=True, exist_ok=True)
-    adjudicated.mkdir(parents=True, exist_ok=True)
+    output.mkdir(parents=True, exist_ok=True)
+    if output_layout == "expanded":
+        generated.mkdir(parents=True, exist_ok=True)
+        adjudicated.mkdir(parents=True, exist_ok=True)
 
     input_manifest = []
     for path in inputs:
@@ -1229,6 +1361,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "focus": sorted(focus),
         "inputs": input_manifest,
         "output": str(output),
+        "output_layout": output_layout,
         "trial_count": len(records),
         "adapter_counts": dict(sorted(Counter(record["adapter"] for record in records).items())),
         "selection_rule": "trial=full; single-job=all failures if <=12 else deterministic 12 plus <=4 controls; paired=4 flips+2 common failures+2 common passes with stable fallback",
@@ -1243,23 +1376,33 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "Standard deep-read samples do not estimate mechanism prevalence.",
         ],
     }
-    write_json(generated / "manifest.json", manifest)
-    write_jsonl(generated / "trials.jsonl", records)
-    flat = [flatten_trial(record) for record in records]
-    trial_fields = list(flat[0].keys()) if flat else ["trial_key"]
-    write_csv(generated / "trials.csv", flat, trial_fields)
-    comparison_fields = [
-        "task_name", "left_trial_key", "right_trial_key", "grade", "reasons", "outcome_quadrant",
-        "left_reward", "right_reward", "left_duration_sec", "right_duration_sec", "left_total_tokens", "right_total_tokens",
-        "left_censored", "right_censored",
-    ]
-    write_csv(generated / "comparability.csv", comparability, comparison_fields)
-    write_json(generated / "comparison-stats.json", stats)
-    write_jsonl(generated / "candidates.jsonl", candidates)
-    selection_fields = ["selection_unit", "task_name", "left_trial_key", "right_trial_key", "outcome", "reason"]
-    write_csv(generated / "selection.csv", selection, selection_fields)
-
-    findings_path = adjudicated / "findings.jsonl"
+    if output_layout == "compact":
+        write_json(output / "audit.json", {
+            "manifest": manifest,
+            "trials": records,
+            "comparability": comparability,
+            "comparison_stats": stats,
+            "candidates": candidates,
+            "selection": selection,
+        })
+        findings_path = output / "findings.jsonl"
+    else:
+        write_json(generated / "manifest.json", manifest)
+        write_jsonl(generated / "trials.jsonl", records)
+        flat = [flatten_trial(record) for record in records]
+        trial_fields = list(flat[0].keys()) if flat else ["trial_key"]
+        write_csv(generated / "trials.csv", flat, trial_fields)
+        comparison_fields = [
+            "task_name", "left_trial_key", "right_trial_key", "grade", "reasons", "outcome_quadrant",
+            "left_reward", "right_reward", "left_duration_sec", "right_duration_sec", "left_total_tokens", "right_total_tokens",
+            "left_censored", "right_censored",
+        ]
+        write_csv(generated / "comparability.csv", comparability, comparison_fields)
+        write_json(generated / "comparison-stats.json", stats)
+        write_jsonl(generated / "candidates.jsonl", candidates)
+        selection_fields = ["selection_unit", "task_name", "left_trial_key", "right_trial_key", "outcome", "reason"]
+        write_csv(generated / "selection.csv", selection, selection_fields)
+        findings_path = adjudicated / "findings.jsonl"
     if not findings_path.exists():
         findings_path.write_text("", encoding="utf-8")
     report_path = output / "report.md"
@@ -1271,6 +1414,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "mode": mode,
         "depth": depth,
         "output": str(output),
+        "output_layout": output_layout,
         "trials": len(records),
         "candidates": len(candidates),
         "selected": len(selection),
@@ -1287,6 +1431,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=("auto", "trial", "job", "paired"), default="auto")
     parser.add_argument("--depth", choices=("metrics", "standard", "full"), default="standard")
     parser.add_argument("--focus", default="all", help="all or comma-separated: health,environment,integrity,tokens,latency,score,process")
+    parser.add_argument("--output-layout", choices=("compact", "expanded"), default="expanded")
     return parser
 
 

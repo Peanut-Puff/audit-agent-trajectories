@@ -2,6 +2,24 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.7.0] - 2026-10-27
+
+### Added
+
+- 新增标准库事件归一化器，统一处理 Harbor 目录、AEO case-log 目录和原始 case-log ZIP，输出最小 model-round/tool-call 账本。
+- 新增相互独立的轮次动作分类器和 E/B/I/V/P stage 投影器；默认只输出紧凑汇总，逐轮结果按需开启。
+- 增加 BitFun request trace、OpenCode event log、ZIP 直读、subagent、混合编辑验证、baseline 阶段和 stable-green 边界的合成回归测试。
+
+### Changed
+
+- 通用脚本只承担格式归一化、动作分类和阶段投影，不固化 Review、返修循环、得分视图或特定 job 报表。
+- 失败审计明确区分 failure surface、responsibility candidate 和 root cause。
+- Skill 默认使用三文件 compact 审计交付；旧 generated/adjudicated 多文件结构保留为显式 expanded 兼容模式。
+- 轮次归一化压缩为 summary 加单一事件包，动作与 stage 默认各输出一个 JSON。
+- 轮次动作分类对齐 BitFun `analyze-agent-case-logs.py`：使用相同完成轮次、工具/命令识别、结构化 validation telemetry 和 `verification > editing > exploration > other` 优先级。
+- Token coverage 对齐 BitFun 诊断脚本：聚合 `step_results`、拒绝无完成请求证据的零填充值，并用 `aeo_model_usage` 判定 complete/partial/missing。
+- README 和安装指南只保留以 `Peanut-Puff/audit-agent-trajectories` 为 source 的 `npx skills` 安装与更新方式。
+
 ## [2.6.0] - 2026-10-19
 
 ### Added

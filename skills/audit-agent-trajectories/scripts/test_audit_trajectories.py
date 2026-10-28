@@ -53,6 +53,16 @@ def make_trial(
             "n_output_tokens": 10 if include_tokens else None,
             "n_cache_tokens": 80 if include_tokens else None,
             "cost_usd": None,
+            "metadata": {
+                "aeo_model_usage": {
+                    "schemaVersion": "harbor-model-usage/1.3",
+                    "requestCount": 1,
+                    "coveredRequestCount": 1,
+                    "inputTokensComplete": True,
+                    "outputTokensComplete": True,
+                    "collectionComplete": True,
+                }
+            } if include_tokens else {},
         },
         "verifier_result": {
             "rewards": {
@@ -122,7 +132,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
 
         self.assertEqual(profile["externalAgent"], "audit-agent-trajectories")
         self.assertEqual(profile["schemaVersion"], "aeo-analysis-methodology-profile/1.0")
-        self.assertEqual(profile["methodologyVersion"], "2.6.0")
+        self.assertEqual(profile["methodologyVersion"], "2.7.0")
         self.assertEqual(profile["requestSchemaVersion"], "aeo-audit-agent-input/1.0")
         self.assertEqual(profile["responseLanguage"], "zh-CN")
         self.assertIn("job_attribution_summary", profile["supportedTaskTypes"])
@@ -171,8 +181,94 @@ class AuditTrajectoriesTests(unittest.TestCase):
 
             self.assertEqual(present_record["tokens"]["total_tokens_excluding_cache"], 110)
             self.assertEqual(present_record["tokens"]["cache_read_tokens"], 80)
+            self.assertEqual(present_record["tokens"]["status"], "complete")
+            self.assertEqual(present_record["coverage"]["tokens"], "complete")
             self.assertIsNone(missing_record["tokens"]["input_tokens"])
             self.assertIsNone(missing_record["tokens"]["total_tokens_excluding_cache"])
+            self.assertEqual(missing_record["tokens"]["status"], "missing")
+            self.assertEqual(missing_record["coverage"]["tokens"], "absent")
+
+    def test_result_token_ledger_aggregates_step_results_and_coverage(self) -> None:
+        def context(input_tokens: int, output_tokens: int, requests: int) -> dict:
+            return {
+                "n_input_tokens": input_tokens,
+                "n_output_tokens": output_tokens,
+                "n_cache_tokens": input_tokens // 2,
+                "metadata": {
+                    "aeo_model_usage": {
+                        "schemaVersion": "harbor-model-usage/1.3",
+                        "requestCount": requests,
+                        "coveredRequestCount": requests,
+                        "inputTokensComplete": True,
+                        "outputTokensComplete": True,
+                        "collectionComplete": True,
+                    }
+                },
+            }
+
+        values, coverage, warnings = audit.result_token_ledger({
+            "agent_result": context(100, 10, 2),
+            "step_results": [
+                {"agent_result": context(20, 3, 1)},
+                {"ignored": True},
+            ],
+        })
+
+        self.assertEqual(values["input_tokens"], 120)
+        self.assertEqual(values["output_tokens"], 13)
+        self.assertEqual(values["cache_read_tokens"], 60)
+        self.assertEqual(coverage["status"], "complete")
+        self.assertEqual(coverage["context_count"], 2)
+        self.assertEqual(coverage["request_count"], 3)
+        self.assertEqual(coverage["covered_request_count"], 3)
+        self.assertEqual(warnings, [])
+
+    def test_result_token_ledger_marks_incomplete_request_coverage_partial(self) -> None:
+        values, coverage, warnings = audit.result_token_ledger({
+            "agent_result": {
+                "n_input_tokens": 100,
+                "n_output_tokens": 10,
+                "metadata": {"aeo_model_usage": {
+                    "requestCount": 2,
+                    "coveredRequestCount": 1,
+                    "inputTokensComplete": True,
+                    "outputTokensComplete": True,
+                    "collectionComplete": True,
+                }},
+            }
+        })
+
+        self.assertEqual(values["input_tokens"], 100)
+        self.assertEqual(coverage["status"], "partial")
+        self.assertIn("incomplete or unproven", warnings[0])
+
+    def test_result_token_ledger_rejects_unproven_zero_but_keeps_confirmed_zero(self) -> None:
+        missing_values, missing_coverage, _ = audit.result_token_ledger({
+            "agent_result": {"n_input_tokens": 0, "n_output_tokens": 0}
+        })
+        self.assertIsNone(missing_values["input_tokens"])
+        self.assertEqual(missing_coverage["status"], "missing")
+
+        zero_values, zero_coverage, warnings = audit.result_token_ledger({
+            "agent_result": {
+                "n_input_tokens": 0,
+                "n_output_tokens": 0,
+                "metadata": {"aeo_model_usage": {
+                    "schemaVersion": "harbor-model-usage/1.3",
+                    "requestCount": 0,
+                    "coveredRequestCount": 0,
+                    "excludedRequestCount": 1,
+                    "inputTokensComplete": True,
+                    "outputTokensComplete": True,
+                    "collectionComplete": True,
+                }},
+            }
+        })
+        self.assertEqual(zero_values["input_tokens"], 0)
+        self.assertEqual(zero_values["output_tokens"], 0)
+        self.assertEqual(zero_coverage["status"], "complete")
+        self.assertTrue(zero_coverage["confirmed_zero"])
+        self.assertEqual(warnings, [])
 
     def test_integrity_candidates_require_tool_calls_and_are_redacted(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -198,7 +294,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             self.assertIn("evaluation_artifact_mutation_candidate", candidate_types)
             access_results = {row["details"].get("access_result") for row in candidates if row["candidate_type"] == "external_access_candidate"}
             self.assertEqual(access_results, {"failure", "success"})
-            self.assertTrue(all(row["methodology_version"] == "2.6.0" for row in candidates))
+            self.assertTrue(all(row["methodology_version"] == "2.7.0" for row in candidates))
             self.assertNotIn("top-secret-token", rendered)
             self.assertNotIn("another-secret", rendered)
             self.assertNotIn("user:password", rendered)
@@ -263,7 +359,7 @@ class AuditTrajectoriesTests(unittest.TestCase):
             args = argparse.Namespace(inputs=[job], output=output, mode="job", depth="standard", focus="all")
             audit.run(args)
             manifest = json.loads((output / "generated" / "manifest.json").read_text(encoding="utf-8"))
-            self.assertEqual(manifest["methodology_version"], "2.6.0")
+            self.assertEqual(manifest["methodology_version"], "2.7.0")
             self.assertEqual(manifest["rule_version"], "trajectory-audit-v2")
             report = output / "report.md"
             findings = output / "adjudicated" / "findings.jsonl"
@@ -276,6 +372,32 @@ class AuditTrajectoriesTests(unittest.TestCase):
             generated = "".join(path.read_text(encoding="utf-8") for path in (output / "generated").iterdir() if path.is_file())
             self.assertNotIn("super-secret-value", generated)
             self.assertNotIn("also-secret", generated)
+
+    def test_compact_layout_has_three_files_and_preserves_human_work(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            job = base / "job"
+            job.mkdir()
+            make_trial(job, "task")
+            output = base / "output"
+            args = argparse.Namespace(
+                inputs=[job], output=output, mode="job", depth="standard", focus="all",
+                output_layout="compact",
+            )
+            summary = audit.run(args)
+            self.assertEqual(summary["output_layout"], "compact")
+            self.assertEqual(
+                {path.name for path in output.iterdir()},
+                {"audit.json", "findings.jsonl", "report.md"},
+            )
+            payload = json.loads((output / "audit.json").read_text(encoding="utf-8"))
+            self.assertEqual(payload["manifest"]["output_layout"], "compact")
+            self.assertEqual(len(payload["trials"]), 1)
+            (output / "report.md").write_text("human report\n", encoding="utf-8")
+            (output / "findings.jsonl").write_text('{"human": true}\n', encoding="utf-8")
+            audit.run(args)
+            self.assertEqual((output / "report.md").read_text(encoding="utf-8"), "human report\n")
+            self.assertEqual((output / "findings.jsonl").read_text(encoding="utf-8"), '{"human": true}\n')
 
     def test_output_inside_input_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -1,6 +1,6 @@
 ---
 name: audit-agent-trajectories
-description: 审计 Harbor、DeepSWE、Pier 或类似 coding-agent evaluation 的 trial/job 轨迹，先验证数据健康度与可比性，再分析环境、评测完整性、Token、耗时、得分、交付链和聚合根因。用于单 trial 诊断、单 job 全量审计或同任务跨 agent/model 配对比较；不用于代替缺失的 verifier 重跑，也不把启发式信号直接当作作弊或根因。
+description: 审计 Harbor、DeepSWE、Pier 或类似 coding-agent evaluation 的 trial/job 轨迹，先验证数据健康度与可比性，再分析环境、评测完整性、Token、耗时、得分、轮次行为、交付链和聚合根因。用于单 trial 诊断、单 job 全量审计或同任务跨 agent/model 配对比较；不用于代替缺失的 verifier 重跑，也不把启发式信号直接当作作弊或根因。
 ---
 
 # Agent 轨迹审计
@@ -15,10 +15,17 @@ description: 审计 Harbor、DeepSWE、Pier 或类似 coding-agent evaluation �
 ```bash
 python3 scripts/audit_trajectories.py INPUT [INPUT ...] \
   --output /absolute/path/to/audit \
-  --mode auto --depth standard --focus all
+  --mode auto --depth standard --focus all --output-layout compact
 ```
 
-脚本只生成事实、派生指标和 `heuristic` 候选。环境责任、评测违规、FMEA 和根因必须复核原始证据后写入 `adjudicated/findings.jsonl`；重跑不得覆盖该文件或已有 `report.md`。
+需要跨 adapter 对齐 model round/tool call 时使用紧凑归一化器：
+
+```bash
+python3 scripts/normalize_trajectory_events.py INPUT [INPUT ...] \
+  --output /absolute/path/to/normalized-events
+```
+
+脚本只生成事实、派生指标和 `heuristic` 候选。Compact 布局只交付 `audit.json`、`findings.jsonl` 和 `report.md`；环境责任、评测违规、FMEA 和根因必须复核原始证据后写入 findings，重跑不得覆盖 findings 或已有报告。
 
 ## 文档路由
 
@@ -27,6 +34,7 @@ python3 scripts/audit_trajectories.py INPUT [INPUT ...] \
 - 环境或作弊：[环境](references/audits/environment.md) 或 [评测完整性](references/audits/evaluation-integrity.md)。
 - Token、成本或耗时：[Token 与成本](references/audits/token-and-cost.md)、[耗时](references/audits/latency.md)；跨 trial 时再读 [聚合](references/aggregation.md)。
 - 得分或 verifier：[得分与 verifier](references/audits/score-and-verifier.md)。
+- 探索/编辑/验证轮次或 E/B/I/V/P 阶段：[轮次归一化与分类](references/audits/round-analysis.md)；跨 trial 时再读 [聚合](references/aggregation.md)。
 - 失败归因：[交付与过程](references/audits/delivery-and-process.md)、[失败模式](references/audits/failure-modes.md)、[根因](references/audits/root-cause.md)。
 - 配对比较：[可比性与抽样](references/core/comparability-and-sampling.md) 和 [聚合](references/aggregation.md)。
 - 交付前完整阅读 [报告规范](references/reporting.md)。

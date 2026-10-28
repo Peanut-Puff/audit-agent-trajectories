@@ -2,38 +2,43 @@
 
 面向 Harbor、DeepSWE、Pier 及类似 coding-agent evaluation 的证据化轨迹审计 skill。它先判断数据的可分析性与可比性，再分别审计环境、评测完整性、Token、耗时、得分、交付链、失败模式和首个 consequential break。
 
-当前版本：`v2.6.0`。
+当前版本：`v2.7.0`。
 
-## 安装
+## 安装与更新
 
-本地仓库安装到 Codex 和 Claude Code：
+全局安装到 Codex 和 Claude Code：
 
 ```bash
-npx skills add /absolute/path/to/audit-agent-trajectories \
+npx skills add Peanut-Puff/audit-agent-trajectories \
   --skill audit-agent-trajectories \
   --agent codex claude-code \
   --global --yes
 ```
 
-仓库发布到 GitHub 后，将本地路径替换为 `<owner>/audit-agent-trajectories`：
+更新全局安装：
 
 ```bash
-npx skills add <owner>/audit-agent-trajectories \
+npx skills update audit-agent-trajectories --global --yes
+```
+
+项目级安装与更新：
+
+```bash
+cd /path/to/project
+npx skills add Peanut-Puff/audit-agent-trajectories \
   --skill audit-agent-trajectories \
   --agent codex claude-code \
-  --global --yes
+  --yes
+npx skills update audit-agent-trajectories --project --yes
 ```
 
-安装到当前项目时去掉 `--global`。安装到 `npx skills` 支持的所有 agent 时使用 `--agent '*'`，但显式列出实际使用的 agent 更容易审计安装范围。
-
-BitFun 可直接导入 skill 目录：
+查看已安装的全局 skill：
 
 ```bash
-bitfun skills validate /absolute/path/to/audit-agent-trajectories/skills/audit-agent-trajectories
-bitfun skills add /absolute/path/to/audit-agent-trajectories/skills/audit-agent-trajectories --level user
+npx skills list --global
 ```
 
-完整的 Codex、Claude Code、BitFun、项目级和手动安装方法见 [安装指南](docs/installation.md)，兼容性和目录映射见 [兼容性说明](docs/compatibility.md)。
+完整的 npx 安装说明见 [安装指南](docs/installation.md)，兼容性见 [兼容性说明](docs/compatibility.md)。
 
 ## 使用
 
@@ -53,10 +58,27 @@ python3 skills/audit-agent-trajectories/scripts/audit_trajectories.py \
   --output /path/to/audit-output \
   --mode auto \
   --depth standard \
-  --focus all
+  --focus all \
+  --output-layout compact
 ```
 
 运行时只依赖 Python 3.10+ 标准库。
+
+需要跨 BitFun/OpenCode/Harbor 对齐 model round 和 tool call 时，先生成紧凑事件账本；它同时接受规范化目录、解压后的 AEO case-log 和原始 case-log ZIP：
+
+```bash
+python3 skills/audit-agent-trajectories/scripts/normalize_trajectory_events.py \
+  /path/to/job-or-case-logs.zip \
+  --output /path/to/normalized-events
+
+python3 skills/audit-agent-trajectories/scripts/classify_round_actions.py \
+  /path/to/normalized-events --output /path/to/round-actions
+
+python3 skills/audit-agent-trajectories/scripts/classify_round_stages.py \
+  /path/to/normalized-events --output /path/to/round-stages
+```
+
+主审计的 compact 布局只生成 `report.md`、`audit.json` 和 `findings.jsonl`；旧多文件目录使用 `--output-layout expanded`。轮次归一化默认生成 `summary.json` 和一个 `trajectory-events.jsonl` 事件包，动作/stage 分类各生成一个 JSON；逐轮分类使用 `--include-rounds`。
 
 AEO 可通过版本化 `AnalysisAgentAdapter` 把裁剪、脱敏的 Trial facts 与 addressable
 evidence 交给该方法。此模式不要求把 AEO Trace ZIP 改造成 Harbor 目录，也不允许分析
@@ -81,6 +103,9 @@ Skill 内部采用渐进披露：`SKILL.md` 只负责流程和文档路由，具
 ```bash
 python3 scripts/validate_package.py
 python3 skills/audit-agent-trajectories/scripts/test_audit_trajectories.py -v
+python3 skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
+python3 skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
+python3 skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
 npx skills add . --list
 ```
 

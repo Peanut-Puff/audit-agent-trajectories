@@ -20,4 +20,7 @@ jobs:
           node-version: "22"
       - run: python scripts/validate_package.py
       - run: python skills/audit-agent-trajectories/scripts/test_audit_trajectories.py -v
+      - run: python skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
+      - run: python skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
+      - run: python skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
       - run: npx --yes skills add . --list

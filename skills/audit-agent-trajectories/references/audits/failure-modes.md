@@ -27,13 +27,24 @@ Evaluator 可观察到哪些失效模式，发生范围和检测难度如何，�
 | FM-13 | 相同 patch recheck 改变 outcome | reconciliation + hashes |
 | FM-14 | Test/fix phase 捕获零测试 | phase summary/logs |
 
+## 失败表面与责任候选
+
+验证失败至少分三层记录，禁止混成一个标签：
+
+1. **Failure surface**：输出直接显示的现象，如 assertion/behavior、compile/type、lint/format、dependency/environment、command/scope、timeout/resource 或 unknown。
+2. **Responsibility candidate**：失败后证据更接近生产代码、验证命令/测试/probe、环境/baseline、mixed 或 unknown。它需要对账两次验证之间的 mutation、命令、revision 和恢复结果。
+3. **Root cause**：最早的可控错误决策，仍按根因方法单独裁决。
+
+测试 runner 输出中出现编译、依赖或 setup 错误时，failure surface 按实际错误记录，不能仅因命令包含 `pytest`/`go test` 就归为行为断言。后续修改了生产代码或测试文件也只形成 responsibility candidate；同一检查通过、最终 verifier 结果和替代解释未闭合前，不升级为责任或根因结论。
+
 ## 审计步骤
 
 1. 用确定性规则生成 candidate，并保留 rule version 和证据路径。
 2. 逐条检查它是否符合 mode 定义，排除 adapter 漏识别和日志文本误报。
-3. 将同一 trial 的同一 mode 合并，保留事件数和代表证据。
-4. 稳定 failure mode 和证据后才评分。
-5. 每个控制必须对应可测 mode，并给验收指标；因果效果需要 same-task paired A/B 验证。
+3. 对验证失败分别记录 failure surface 和 responsibility candidate，不用表面类别替代责任判断。
+4. 将同一 trial 的同一 mode 合并，保留事件数和代表证据。
+5. 稳定 failure mode 和证据后才评分。
+6. 每个控制必须对应可测 mode，并给验收指标；因果效果需要 same-task paired A/B 验证。
 
 ## FMEA 评分
 

@@ -25,5 +25,8 @@ Run the smallest relevant checks, and before a release run:
 ```bash
 python3 scripts/validate_package.py
 python3 skills/audit-agent-trajectories/scripts/test_audit_trajectories.py -v
+python3 skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
+python3 skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
+python3 skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
 npx skills add . --list
 ```

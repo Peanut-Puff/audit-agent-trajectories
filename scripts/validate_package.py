@@ -46,7 +46,13 @@ def main() -> int:
         SKILL / "references" / "adapters" / "aeo-runtime-prompt.md",
         SKILL / "runtime" / "aeo-profile.json",
         SKILL / "scripts" / "audit_trajectories.py",
+        SKILL / "scripts" / "normalize_trajectory_events.py",
+        SKILL / "scripts" / "classify_round_actions.py",
+        SKILL / "scripts" / "classify_round_stages.py",
         SKILL / "scripts" / "test_audit_trajectories.py",
+        SKILL / "scripts" / "test_normalize_trajectory_events.py",
+        SKILL / "scripts" / "test_classify_round_actions.py",
+        SKILL / "scripts" / "test_classify_round_stages.py",
         ROOT / "scripts" / "build_aeo_profile.py",
     ]
     for path in required:
@@ -64,14 +70,33 @@ def main() -> int:
     method_version = method_match.group(1) if method_match else None
     if method_version != version:
         fail(f"METHODOLOGY_VERSION {method_version!r} does not match VERSION {version!r}", errors)
+    additional_scripts = [
+        SKILL / "scripts" / "normalize_trajectory_events.py",
+        SKILL / "scripts" / "classify_round_actions.py",
+        SKILL / "scripts" / "classify_round_stages.py",
+    ]
+    for script in additional_scripts:
+        text = script.read_text(encoding="utf-8") if script.is_file() else ""
+        match = re.search(r'METHODOLOGY_VERSION\s*=\s*"([^"]+)"', text)
+        found = match.group(1) if match else None
+        if found != version:
+            fail(f"{script.name} METHODOLOGY_VERSION {found!r} does not match VERSION {version!r}", errors)
     index_text = (SKILL / "references" / "methodology-index.md").read_text(encoding="utf-8")
     if f"`{version}`" not in index_text:
         fail("methodology-index.md does not declare VERSION", errors)
 
     try:
         compile(script_text, str(SKILL / "scripts" / "audit_trajectories.py"), "exec")
-        test_text = (SKILL / "scripts" / "test_audit_trajectories.py").read_text(encoding="utf-8")
-        compile(test_text, str(SKILL / "scripts" / "test_audit_trajectories.py"), "exec")
+        for script in additional_scripts:
+            compile(script.read_text(encoding="utf-8"), str(script), "exec")
+        test_scripts = [
+            SKILL / "scripts" / "test_audit_trajectories.py",
+            SKILL / "scripts" / "test_normalize_trajectory_events.py",
+            SKILL / "scripts" / "test_classify_round_actions.py",
+            SKILL / "scripts" / "test_classify_round_stages.py",
+        ]
+        for test_script in test_scripts:
+            compile(test_script.read_text(encoding="utf-8"), str(test_script), "exec")
         profile_builder = (ROOT / "scripts" / "build_aeo_profile.py").read_text(encoding="utf-8")
         compile(profile_builder, str(ROOT / "scripts" / "build_aeo_profile.py"), "exec")
     except SyntaxError as error:

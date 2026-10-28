@@ -11,6 +11,7 @@
 ## 证据来源
 
 - `result.agent_result`、trajectory `final_metrics`。
+- `result.step_results[].agent_result`，与顶层 agent result 按 execution context 汇总。
 - 最后一个 raw-stream `type=result` 的累计 `modelUsage`。
 - BitFun `token_usage/model_stats.json` 和 provider 账单/成本字段。
 - Model、session、request、segment 和 subagent 关系。
@@ -24,11 +25,13 @@
 ## 审计步骤
 
 1. 识别 adapter 的权威累计 ledger 和次级交叉验证来源。
-2. 检查 cumulative 与 segment 语义，禁止累加已经累计的 result。
-3. 按 model/session 核对总量、请求数和 cache 口径。
-4. 对差异记录原值和 provenance，不静默选择。
-5. 计算完整率、总量、中位数、P90、成功/失败分布和同任务配对差。
-6. 将全量资源消耗与成功条件下效率分开，避免 survivorship bias。
+2. 汇总顶层与 step result 的 agent result；用 `aeo_model_usage` 核对 request/coveredRequest 和 input/output/collection completeness。
+3. 没有 completed-request 证据的全零 usage 保持 missing；schema 明确声明零请求且有 excluded request 时才保留确认零值。
+4. 检查 cumulative 与 segment 语义，禁止累加已经累计的 result。
+5. 按 model/session 核对总量、请求数和 cache 口径。
+6. 对差异记录原值和 provenance，不静默选择。
+7. 计算完整率、总量、中位数、P90、成功/失败分布和同任务配对差。
+8. 将全量资源消耗与成功条件下效率分开，避免 survivorship bias。
 
 CodeAgent 多 segment 存在累计 `modelUsage` 时，使用最后一个 result 并按模型汇总；同级 `usage` 只是当前 segment，不是累计总量。
 

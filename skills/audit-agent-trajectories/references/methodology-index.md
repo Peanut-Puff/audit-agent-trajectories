@@ -1,6 +1,6 @@
 # 轨迹审计方法索引
 
-方法版本：`2.6.0`。
+方法版本：`2.7.0`。
 
 ## 方法模型
 
@@ -30,6 +30,7 @@
 | Token/成本效率 | readiness、token-and-cost、aggregation | comparability、score |
 | 耗时效率 | readiness、latency、aggregation | environment、comparability |
 | 得分和回归 | readiness、score-and-verifier、aggregation | root-cause |
+| 轮次动作或 E/B/I/V/P 阶段 | readiness、round-analysis、aggregation | comparability、delivery |
 | 跨 agent/model 配对 | readiness、comparability、aggregation | 被比较指标对应的专项文档 |
 | 全量根因分布 | readiness、score、delivery、failure-modes、root-cause、aggregation | comparability |
 
@@ -42,6 +43,7 @@
 - [Token 与成本](audits/token-and-cost.md)
 - [耗时](audits/latency.md)
 - [得分与 verifier](audits/score-and-verifier.md)
+- [轮次归一化与分类](audits/round-analysis.md)
 - [交付链与过程收敛](audits/delivery-and-process.md)
 - [FMEA 失败模式](audits/failure-modes.md)
 - [首个 consequential break 与根因](audits/root-cause.md)

@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | Codex | `codex` | `.agents/skills` | `npx` 管理；官方目录 `~/.agents/skills` | 已验证发现与安装 |
 | Claude Code | `claude-code` | `.claude/skills` | `~/.claude/skills` | 已验证发现与安装 |
-| BitFun | 无专用 ID | `.bitfun/skills`，并扫描多个通用目录 | `bitfun skills add --level user` | 按源码命令与 registry 验证 |
+| BitFun | 无专用 ID | 可扫描 npx 为通用 agent 安装的项目目录 | 由 `npx skills` 管理通用目录 | 已验证解析同一 skill 格式 |
 | AEO | `AnalysisAgentAdapter` | 内置插件 | 后台固定 manifest 与 endpoint | 结构化 facts/evidence 接入 |
 | Cursor 等 | 运行 `npx skills --help` 查询 | 由 skills CLI 映射 | 由 skills CLI 映射 | 标准格式兼容 |
 
@@ -20,7 +20,7 @@
 
 ## 已验证场景
 
-- `npx skills add <local-repo> --list` 能发现 `audit-agent-trajectories`。
+- `npx skills add Peanut-Puff/audit-agent-trajectories --list` 能发现 `audit-agent-trajectories`。
 - Codex 和 Claude Code 的隔离项目安装会保留完整 skill 目录。
 - BitFun 的 skill parser 接受同一 `SKILL.md`，其 registry 扫描 `.bitfun/.claude/.codex/.agents` 等项目目录。
 - 单 trial、单 job 和配对 job 的 extractor 测试不依赖宿主。
@@ -29,8 +29,7 @@
 ## 宿主差异
 
 - 显式调用语法由宿主决定；Codex 使用 `$audit-agent-trajectories` 或 `/skills`。
-- 安装器可能选择 symlink 或 copy。Copy 安装不会自动跟随 Git 更新。
-- BitFun 的专用 CLI 是复制安装；通用目录 symlink 更适合本地开发。
+- 安装和更新统一通过 `npx skills` 管理。
 - 宿主是否自动调用 skill 取决于其 discovery 和 description 匹配策略，不影响显式调用。
 
 ## 安全边界

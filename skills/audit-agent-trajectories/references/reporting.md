@@ -1,6 +1,19 @@
 # 报告与机器输出规范
 
-## 输出目录
+## Compact 输出
+
+```text
+<output>/
+|-- audit.json
+|-- findings.jsonl
+`-- report.md
+```
+
+Skill 默认调用 `--output-layout compact`。`audit.json` 是确定性、可重建层，包含 manifest、trials、comparability、comparison stats、candidates 和 selection；`findings.jsonl` 与 `report.md` 属于人工产物，提取器只在不存在时创建，不得覆盖。
+
+## Expanded 兼容布局
+
+CLI 默认仍为 `expanded`，供依赖旧文件路径的自动化显式使用：
 
 ```text
 <output>/
@@ -16,8 +29,6 @@
 |   `-- findings.jsonl
 `-- report.md
 ```
-
-`generated/` 是确定性、可重建层。`adjudicated/findings.jsonl` 和 `report.md` 属于人工产物；提取器只在不存在时创建，不得覆盖。
 
 ## Manifest
 
@@ -37,7 +48,7 @@
 - patch path/hash/stats、关键 artifact path/hash；
 - provenance、缺失、矛盾和限制。
 
-CSV 是便于筛选的扁平子集；完整嵌套证据保留 JSONL。两者数据行数必须等于枚举 trial 数。
+Compact 布局在 `audit.json.trials` 保留完整记录。Expanded 布局的 CSV 是便于筛选的扁平子集，完整嵌套证据保留 JSONL；两者数据行数必须等于枚举 trial 数。
 
 ## Candidate 与 Finding
 
@@ -107,7 +118,7 @@ Finding 至少包含 candidate 引用、`adjudication=confirmed|rejected|indeter
 ## 交付检查
 
 - Markdown 相对链接可解析，所有 reference 可从方法索引或入口到达。
-- Trial JSONL/CSV、comparability 和 selection 行数与范围一致。
+- Compact 的 `audit.json` 各数组或 expanded 的 Trial JSONL/CSV、comparability 和 selection 行数与范围一致。
 - 缺失没有变成 0，敏感值没有进入生成物。
 - 重跑不改变人工文件。
 - 报告清楚区分健康、结果、failure mode 和 root cause。
