@@ -20,6 +20,10 @@
 - Token coverage 对齐 BitFun 诊断脚本：聚合 `step_results`、拒绝无完成请求证据的零填充值，并用 `aeo_model_usage` 判定 complete/partial/missing。
 - README 和安装指南只保留以 `Peanut-Puff/audit-agent-trajectories` 为 source 的 `npx skills` 安装与更新方式。
 
+### Fixed
+
+- 嵌套 `agent.zip` 使用 Python 3.10 兼容的临时文件接口，修复 `SpooledTemporaryFile` 缺少 `seekable` 导致的 CI 失败。
+
 ## [2.6.0] - 2026-10-19
 
 ### Added

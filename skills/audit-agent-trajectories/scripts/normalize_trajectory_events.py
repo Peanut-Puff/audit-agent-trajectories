@@ -920,7 +920,9 @@ def analyze_zip_input(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, 
                 )
             else:
                 member = f"{prefix}agent.zip"
-                with tempfile.SpooledTemporaryFile(max_size=64 * 1024 * 1024) as temporary:
+                # Python 3.10's zipfile expects a concrete file object exposing
+                # ``seekable``; SpooledTemporaryFile does not provide it there.
+                with tempfile.TemporaryFile(mode="w+b") as temporary:
                     with outer.open(member) as source_handle:
                         shutil.copyfileobj(source_handle, temporary)
                     temporary.seek(0)

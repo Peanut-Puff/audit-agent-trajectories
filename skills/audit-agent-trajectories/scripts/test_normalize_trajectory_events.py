@@ -192,6 +192,13 @@ class NormalizeTrajectoryEventsTests(unittest.TestCase):
             self.assertTrue((full_output / "tool-calls.csv").is_file())
             self.assertTrue((full_output / "trials.jsonl").is_file())
 
+    def test_nested_zip_buffer_exposes_seekable_file_interface(self) -> None:
+        # Python 3.10 zipfile requires the nested archive's file object to
+        # expose ``seekable``; this guards against SpooledTemporaryFile.
+        with tempfile.TemporaryFile(mode="w+b") as temporary:
+            self.assertTrue(hasattr(temporary, "seekable"))
+            self.assertTrue(temporary.seekable())
+
     def test_normalized_trajectory_and_subagent_are_supported(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "job" / "trial"
