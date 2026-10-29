@@ -14,7 +14,7 @@ from typing import Any, Iterable, Sequence
 SCRIPT_VERSION = "1.0.0"
 INPUT_SCHEMA_VERSION = "trajectory-events/1"
 SCHEMA_VERSION = "round-actions/1"
-METHODOLOGY_VERSION = "2.8.0"
+METHODOLOGY_VERSION = "2.8.1"
 RULE_VERSION = "round-action-classification/1.0"
 
 

@@ -25,22 +25,62 @@ tables already display totals and distributions. Do not repeat every supplied nu
 analyst should inspect first. Treat a cohort as a full-population candidate grouping, not a shared
 root cause. Treat a selected success Case as a control example, not a prescribed implementation.
 
-Every objective-layout title must state a finding, not repeat the dimension name. Write compact
-Markdown with exactly four level-2 headings: `## 关键结论`, `## 影响范围`, `## 行动`, and
-`## 证据边界`.
+Every objective-layout title must state one short finding in plain Chinese, not repeat the
+dimension name. Write brief Markdown with exactly three level-2 headings, in this order:
+`## 关键结论`, `## 行动`, and `## 影响范围与证据`.
 
-- `关键结论`: one or two claims that add interpretation beyond the visible metrics.
-- `影响范围`: give `affected/eligible`, exact supplied Case IDs or titles, and whether the list is
-  complete or examples only. Never substitute opaque Trial IDs when a Case identity is supplied.
-- `行动`: include at most two actions. Each action must name `P0|P1|P2`, owner
-  (`platform|telemetry|verifier|agent`), exact Case scope, diagnostic question or concrete change,
-  target metric, and validation method. Prefer supplied prioritized findings and optimization
-  candidates. If none is evidence-backed, write `无需动作` or state the blocking evidence gap.
-- `证据边界`: state the strongest alternative explanation, unavailable evidence, and whether the
-  claim is a measurement, candidate, or hypothesis.
+- `关键结论`: normally one or two short sentences, each expressing one conclusion in its own
+  paragraph or bullet. Say what the result means. Do not enumerate supporting evidence, Case
+  names, evidence keys, or metric breakdowns here. Keep uncertainty in the sentence when it
+  changes the meaning; do not hide it in the final section.
+- `行动`: recommend a concrete change to improve task correctness/score, reduce Token use,
+  shorten execution time, or address an evaluation-environment or cheating/integrity problem.
+  Choose only goals relevant to the observed problem; do not fill every category or invent an
+  action for every dimension. Use one short, everyday Chinese sentence per action, at most two.
+  Say what to change, using supplied prioritized findings and optimization candidates when
+  relevant, without reproducing priority codes, owner labels, Case lists, scope fields, target
+  metrics, or acceptance checklists. Do not default to collecting records, reviewing reports,
+  or doing more analysis. If a specific check is necessary before choosing a fix, state the
+  check and the optimization decision it enables in the same sentence. If evidence is too
+  limited to recommend a change, write `暂无法给出优化建议。` and put the limitation at the end;
+  if the evidence shows no issue needing improvement, write `无需动作。`.
+- `影响范围与证据`: merge scope, support, and any material evidence limitation into one short
+  paragraph at the end. Summarize the affected group by its shared observation, using the supplied
+  affected/eligible count when available and relevant. Explain what the evidence supports, rather
+  than dumping Case lists or keys. Name a representative Case only when it clarifies the finding,
+  identify it as an example, and use its supplied Case identity rather than an opaque Trial ID.
+  Cite only necessary supporting keys in `evidenceKeys`; do not repeat their excerpts in prose.
 
-Never recommend only “review”, “rerun”, “compare P90”, or “inspect failures”. Such verbs require
-named Cases and a specific question the action will answer. Do not turn Verifier failure,
+Base each action on the observed mechanism: fix the missed requirement or validation step for
+score; avoid demonstrated repeated context reads or redundant calls for Token use; remove an
+observed wait or redundant serial work for latency; fix the evidenced dependency, setup, or
+resource problem for the environment. Improve score by solving the task correctly, never by
+weakening the Verifier or exploiting the scoring chain. For integrity, close an evidenced
+unauthorized answer-access path; if it is only a candidate, recommend a targeted check before
+any corrective action and do not call it proven cheating. High Token use or long duration alone
+does not justify reducing reasoning, validation, or execution limits.
+
+For example, when supplied traces show repeated whole-file reads of unchanged files after the
+relevant function has already been located in two of seven Cases, a concise detail is:
+
+## 关键结论
+
+定位代码后仍反复读取整份文件，增加了输入 Token。
+
+## 行动
+
+定位到相关函数后只读取需要的代码片段，避免反复把整份文件送入上下文。
+
+## 影响范围与证据
+
+2/7 个任务的工具记录显示重复读取未改动的文件；尚未验证减少读取后能节省多少 Token。
+
+This is a style example, not evidence for the current request. The final section stays ordinary
+Markdown: the current AEO host disables raw HTML, so do not use HTML folding tags or promise
+interactive collapse. Keep it short enough to read without a separate expansion.
+
+Never recommend only “review”, “rerun”, “compare P90”, or “inspect failures”. Name the concrete
+change or diagnostic question in plain language, without requiring Case IDs. Do not turn Verifier failure,
 `solution_incorrect`, high usage, a Tool error, or absent delivery telemetry into a behavioral root
 cause. `delivery_evidence_unavailable` means the platform cannot judge the delivery chain; it does
 not mean the Agent produced no Patch. Ignore repeat/reliability fields for objective tasks even if
@@ -52,25 +92,28 @@ an unresolved hypothesis. It is not a probability of correctness.
 
 Apply the current objective run tasks as follows:
 
-- job_data_health_summary: identify only the evidence gaps that block or weaken a later decision;
-  assign telemetry/platform actions to precise affected scope.
+- job_data_health_summary: identify only the evidence gaps that block or weaken an optimization
+  decision; keep missing-record details in the final section, not a default collection action.
 - job_outcome_summary: separate Verifier-rejected Cases from abnormal execution and state which
   group should be investigated first; do not discuss repeat stability.
-- job_verifier_summary: identify missing/error coverage and the exact rejected Case scope, but do
+- job_verifier_summary: identify missing/error coverage and the affected rejected group, but do
   not rewrite rejection as a semantic mechanism without Verifier detail.
 - job_execution_health_summary: prioritize explicit abnormal Cases and recovery evidence; do not
   infer OOM, infrastructure responsibility, or systemic fault from an isolated event.
-- job_latency_efficiency_summary: name only failed or abnormal Cases that actually enter the
-  supplied latency-tail cohort and compare them with supplied success controls.
-- job_model_resource_summary: name only failed Cases in the supplied usage-tail cohort; preserve
-  cache and coverage semantics and never call high usage waste.
+- job_latency_efficiency_summary: discuss only failed or abnormal Cases that actually enter the
+  supplied latency-tail cohort and compare them with supplied success controls. Recommend a
+  time-saving change only when an actual wait, retry, or redundant operation is evidenced.
+- job_model_resource_summary: discuss only failed Cases in the supplied usage-tail cohort; preserve
+  cache and coverage semantics and never call high usage waste. Recommend reducing repeated
+  context or calls only when the supplied process evidence shows that repetition is unnecessary.
 - job_tool_process_summary: use per-Case Tool problems and process coverage; do not propose a
   global Tool policy when category-to-failure attribution is unavailable.
 - job_delivery_validation_summary: separate confirmed no-Patch, changed-without-observed-validation,
   and delivery-evidence-unavailable cohorts. Missing telemetry is a platform limitation.
-- job_risk_optimization_summary: provide the executive priority list across owners, normally no
-  more than three actions. Keep outcome endpoints, candidates, integrity signals, and root-cause
-  hypotheses separate.
+- job_risk_optimization_summary: prioritize the most useful changes for score, Token use, time,
+  environment, or integrity, using at most two plain action sentences without repeating all other
+  dimensions. Keep outcome endpoints, candidates, integrity signals, and root-cause hypotheses
+  separate.
 
 The following legacy run tasks may still be requested by an older AEO host. Preserve their 2.4
 semantics and return one item per requested task:

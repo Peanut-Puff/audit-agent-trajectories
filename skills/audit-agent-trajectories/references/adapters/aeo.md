@@ -81,15 +81,33 @@ Authorization header，不得进入 profile、prompt、请求 JSON、普通日�
 - `job_model_resource_summary`：Token、Cache、Reasoning、轮次、成本和 Case 分布；
 - `job_tool_process_summary`：Tool 分类、结果、重试、workspace 与 validation 事件；
 - `job_delivery_validation_summary`：Patch、capture、改动范围和验证覆盖；
-- `job_risk_optimization_summary`：跨 owner 的优先结论、精确 Case 范围、控制和验收方式；
+- `job_risk_optimization_summary`：最值得先处理的问题与具体优化建议；
 - 最多 30 条 Job/Trial/Trace evidence 和 20 个分层 Case 示例用于当前布局，旧布局上限 100；
   Case cohort 来自全量确定性事实，evidence 仍只是下钻样本；
 - 不把候选计数、失败测试数或截断 evidence 写成全量根因率。
 
-每项 detail 固定使用“## 关键结论/## 影响范围/## 行动/## 证据边界”二级标题。item 标题不能重复维度名；行动必须
-给出优先级、owner、精确 Case 范围、诊断问题或改动、目标指标和验证方法。没有证据支持的
-行动明确写“无需动作”或数据阻塞，禁止只写“复查、重跑、比较 P90”。2.4 的九个旧 task kind 继续保留在 profile 中，使新
-Skill 可先导入旧 AEO；新 AEO 选择当前九维，历史方案仍按冻结的旧 task kind 执行和解释。
+每项 detail 依次使用“## 关键结论/## 行动/## 影响范围与证据”三个二级标题：
+
+- 关键结论通常一至两句，一句话只说一个结论，分段或分条写；不列举证据、Case 或指标明细。
+  影响判断的不确定性直接写进结论，例如“缺少测试记录，暂时无法判断是否漏测”。item 标题也只写简短结论，不复述维度名。
+- 行动主要用于提高得分、减少 Token、缩短耗时，或解决评测环境、作弊等问题；只选与当前问题相关的优化，
+  不要求凑齐所有方向或每个维度都有建议。最多两条，每条用一句通俗的话说清具体改什么，
+  不要求优先级、owner、范围、目标指标和验收清单。不要默认写成补记录、看报告或继续分析；
+  必须先排查才能选择修复时，一句话说清查什么，以及据此决定怎么改。
+  证据不足时写“暂无法给出优化建议。”，把缺失放到文末；确认没有待优化问题时写“无需动作。”。
+- 影响范围与证据合并为文末一个短段落，概括同类问题，按需保留输入提供的受影响数/可分析数及关键限制；
+  不堆砌 Case 名单或 evidence key。只有能帮助理解时才点名代表 Case，并注明它是示例。
+  可追溯引用保留在结构化 `evidenceKeys` 中，不在正文重复整段证据。
+
+优化要对应已观察到的问题：得分针对遗漏的需求或验证步骤，Token 针对不必要的重复上下文或调用，
+耗时针对已知等待、重试或冗余步骤，环境针对已证实的依赖、配置或资源故障。
+提高得分依靠正确完成任务，不得建议削弱 Verifier 或利用评分链；作弊只有直接证据支持时才建议封堵对应路径，
+候选信号只建议针对性核查。不能仅因 Token 高或耗时长就削减推理、测试或执行额度。
+
+当前 AEO Markdown 禁用原始 HTML，单改 skill 无法新增折叠交互，因此末段使用精简的普通 Markdown，
+不输出 `<details>` 标签或假装已经折叠。九维、JSON 字段和 evidence key 契约保持不变；
+2.4 的九个旧 task kind 继续保留在 profile 中，使新 Skill 可先导入旧 AEO；新 AEO 选择当前九维，
+历史方案仍按冻结的旧 task kind 执行和解释。
 
 ## 完成检查
 

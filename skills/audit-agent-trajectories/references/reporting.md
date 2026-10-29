@@ -1,5 +1,11 @@
 # 报告与机器输出规范
 
+## AEO Job 输出
+
+AEO 的结构化 Job 分析使用 [AEO Adapter](adapters/aeo.md#run-scope) 的简短三段格式：关键结论、
+行动、文末合并的影响范围与证据。运行时指令由该 Adapter 链接的 profile 提供。
+下文的完整离线报告顺序、逐 Trial 模板和聚合明细不应套用到 AEO 每项 detail。
+
 ## Compact 输出
 
 ```text

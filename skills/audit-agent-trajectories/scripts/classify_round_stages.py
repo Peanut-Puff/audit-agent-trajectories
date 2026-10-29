@@ -18,7 +18,7 @@ import classify_round_actions as actions
 SCRIPT_VERSION = "1.0.0"
 INPUT_SCHEMA_VERSION = "trajectory-events/1"
 SCHEMA_VERSION = "round-stages/1"
-METHODOLOGY_VERSION = "2.8.0"
+METHODOLOGY_VERSION = "2.8.1"
 RULE_VERSION = "ebivp-stage-projection/1.0"
 
 
