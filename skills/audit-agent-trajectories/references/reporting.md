@@ -11,6 +11,8 @@
 
 Skill 默认调用 `--output-layout compact`。`audit.json` 是确定性、可重建层，包含 manifest、trials、comparability、comparison stats、candidates 和 selection；`findings.jsonl` 与 `report.md` 属于人工产物，提取器只在不存在时创建，不得覆盖。
 
+显式 `--html` 可附加可重建的 `report.html`，也可独立渲染已有审计。支持单 Trial/配对 Trial 与单 Job/双 Job 总览，Job 另附 `report-details/` 静态详情目录；语义阶段、请求曲线、筛选统计和证据下钻见 [HTML 展示层](html-presentation.md)。默认三文件 compact 契约不变，AEO runtime 仍返回 JSON。
+
 ## Expanded 兼容布局
 
 CLI 默认仍为 `expanded`，供依赖旧文件路径的自动化显式使用：

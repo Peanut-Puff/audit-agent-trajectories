@@ -38,6 +38,7 @@ python3 scripts/normalize_trajectory_events.py INPUT [INPUT ...] \
 - 失败归因：[交付与过程](references/audits/delivery-and-process.md)、[失败模式](references/audits/failure-modes.md)、[根因](references/audits/root-cause.md)。
 - 配对比较：[可比性与抽样](references/core/comparability-and-sampling.md) 和 [聚合](references/aggregation.md)。
 - 交付前完整阅读 [报告规范](references/reporting.md)。
+- 用户需要 HTML 时读 [独立展示层](references/html-presentation.md)；显式 `--html` 附加 Trial/Job 总览和静态详情，筛选同步分母与结论范围，AEO 仍返回 JSON。
 
 ## 强制边界
 

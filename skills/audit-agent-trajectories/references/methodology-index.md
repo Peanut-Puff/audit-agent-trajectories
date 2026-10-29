@@ -1,6 +1,6 @@
 # 轨迹审计方法索引
 
-方法版本：`2.7.0`。
+方法版本：`2.8.0`。
 
 ## 方法模型
 
@@ -54,6 +54,7 @@
 - [AEO AnalysisAgentAdapter](adapters/aeo.md) 定义结构化 facts/evidence 的准入、任务类型和 hypothesis 输出边界。
 - [聚合与跨组比较](aggregation.md) 是所有跨 trial 汇总的唯一规范来源。
 - [报告与机器输出](reporting.md) 是交付结构、机器字段和中文报告模板的唯一规范来源。
+- [HTML 展示层](html-presentation.md) 定义显式启用的 Trial/Job 视图、同步筛选、静态详情、语义标注和证据下钻。
 
 ## 术语
 

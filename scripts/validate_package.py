@@ -53,6 +53,13 @@ def main() -> int:
         SKILL / "scripts" / "test_normalize_trajectory_events.py",
         SKILL / "scripts" / "test_classify_round_actions.py",
         SKILL / "scripts" / "test_classify_round_stages.py",
+        SKILL / "scripts" / "render_audit_html.py",
+        SKILL / "scripts" / "test_render_audit_html.py",
+        SKILL / "scripts" / "test_job_statistics.cjs",
+        SKILL / "assets" / "html" / "report.css",
+        SKILL / "assets" / "html" / "report.js",
+        SKILL / "assets" / "html" / "job.js",
+        SKILL / "assets" / "html" / "job-statistics.js",
         ROOT / "scripts" / "build_aeo_profile.py",
     ]
     for path in required:
@@ -89,11 +96,14 @@ def main() -> int:
         compile(script_text, str(SKILL / "scripts" / "audit_trajectories.py"), "exec")
         for script in additional_scripts:
             compile(script.read_text(encoding="utf-8"), str(script), "exec")
+        renderer = SKILL / "scripts" / "render_audit_html.py"
+        compile(renderer.read_text(encoding="utf-8"), str(renderer), "exec")
         test_scripts = [
             SKILL / "scripts" / "test_audit_trajectories.py",
             SKILL / "scripts" / "test_normalize_trajectory_events.py",
             SKILL / "scripts" / "test_classify_round_actions.py",
             SKILL / "scripts" / "test_classify_round_stages.py",
+            SKILL / "scripts" / "test_render_audit_html.py",
         ]
         for test_script in test_scripts:
             compile(test_script.read_text(encoding="utf-8"), str(test_script), "exec")

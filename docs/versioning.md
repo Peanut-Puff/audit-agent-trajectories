@@ -8,7 +8,7 @@
 - `SCHEMA_VERSION`：机器输出的破坏性 schema 版本。
 - `SCRIPT_VERSION`：提取器实现版本。
 
-首个独立仓库版本为 `v2.0.0`；AEO 结构化输入从 `v2.1.0` 开始支持，Run 聚合从 `v2.2.0` 开始支持，宿主可校验的 AEO runtime profile 从 `v2.3.0` 开始提供，完整 Run 审计维度从 `v2.4.0` 开始支持，客观九维与指标驱动优化建议从 `v2.5.0` 开始支持，Case/cohort 驱动的可行动报告从 `v2.6.0` 开始支持，跨 adapter 事件归一化和可选轮次/stage 分类从 `v2.7.0` 开始支持。
+首个独立仓库版本为 `v2.0.0`；AEO 结构化输入从 `v2.1.0` 开始支持，Run 聚合从 `v2.2.0` 开始支持，宿主可校验的 AEO runtime profile 从 `v2.3.0` 开始提供，完整 Run 审计维度从 `v2.4.0` 开始支持，客观九维与指标驱动优化建议从 `v2.5.0` 开始支持，Case/cohort 驱动的可行动报告从 `v2.6.0` 开始支持，跨 adapter 事件归一化和可选轮次/stage 分类从 `v2.7.0` 开始支持，显式启用的 Trial/Job HTML 展示从 `v2.8.0` 开始支持。
 
 ## Semantic Versioning
 
@@ -30,6 +30,8 @@
    python3 skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
    python3 skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
    python3 skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
+   python3 skills/audit-agent-trajectories/scripts/test_render_audit_html.py -v
+   node skills/audit-agent-trajectories/scripts/test_job_statistics.cjs
    npx skills add . --list
    ```
 

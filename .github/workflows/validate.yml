@@ -23,4 +23,6 @@ jobs:
       - run: python skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
       - run: python skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
       - run: python skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
+      - run: python skills/audit-agent-trajectories/scripts/test_render_audit_html.py -v
+      - run: node skills/audit-agent-trajectories/scripts/test_job_statistics.cjs
       - run: npx --yes skills add . --list

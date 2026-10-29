@@ -20,7 +20,7 @@ from typing import Any, Iterable, Sequence
 
 SCRIPT_VERSION = "1.0.0"
 SCHEMA_VERSION = "trajectory-events/1"
-METHODOLOGY_VERSION = "2.7.0"
+METHODOLOGY_VERSION = "2.8.0"
 RULE_VERSION = "trajectory-event-normalization/1.0"
 HASH_LIMIT = 64 * 1024 * 1024
 

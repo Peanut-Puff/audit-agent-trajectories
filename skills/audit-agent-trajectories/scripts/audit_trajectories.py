@@ -18,9 +18,9 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 
-SCRIPT_VERSION = "1.1.0"
+SCRIPT_VERSION = "1.2.0"
 SCHEMA_VERSION = 1
-METHODOLOGY_VERSION = "2.7.0"
+METHODOLOGY_VERSION = "2.8.0"
 RULE_VERSION = "trajectory-audit-v2"
 BOOTSTRAP_SEED = 20260918
 BOOTSTRAP_SAMPLES = 10_000
@@ -1313,6 +1313,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     depth = "full" if mode == "trial" else args.depth
 
     records, candidates, jobs = collect(inputs, mode)
+    html_enabled = bool(getattr(args, "html", False))
+    if not html_enabled and (getattr(args, "html_normalized", None) or getattr(args, "html_annotations", None)):
+        raise ValueError("--html-normalized/--html-annotations require --html")
     add_high_resource_candidates(records, candidates)
     candidates = dedupe_candidates([candidate for candidate in candidates if candidate["focus"] in focus])
     comparability = build_comparability(jobs) if mode == "paired" else []
@@ -1409,6 +1412,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if not report_path.exists():
         report_path.write_text(summary_report(records, candidates, selection, mode, depth), encoding="utf-8")
 
+    if html_enabled:
+        import render_audit_html
+        render_audit_html.run(argparse.Namespace(
+            inputs=[output / "audit.json" if output_layout == "compact" else generated / "manifest.json"],
+            output=output / "report.html",
+            normalized=getattr(args, "html_normalized", None),
+            annotations=getattr(args, "html_annotations", None),
+        ))
+
     return {
         "methodology_version": METHODOLOGY_VERSION,
         "mode": mode,
@@ -1432,6 +1444,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--depth", choices=("metrics", "standard", "full"), default="standard")
     parser.add_argument("--focus", default="all", help="all or comma-separated: health,environment,integrity,tokens,latency,score,process")
     parser.add_argument("--output-layout", choices=("compact", "expanded"), default="expanded")
+    parser.add_argument("--html", action="store_true", help="add offline Trial/Job HTML with static detail pages")
+    parser.add_argument("--html-normalized", type=Path, help="optional normalized event directory; requires --html")
+    parser.add_argument("--html-annotations", type=Path, help="optional trial-presentation/1 annotations; requires --html")
     return parser
 
 

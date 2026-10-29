@@ -2,7 +2,7 @@
 
 面向 Harbor、DeepSWE、Pier 及类似 coding-agent evaluation 的证据化轨迹审计 skill。它先判断数据的可分析性与可比性，再分别审计环境、评测完整性、Token、耗时、得分、交付链、失败模式和首个 consequential break。
 
-当前版本：`v2.7.0`。
+当前版本：`v2.8.0`。
 
 ## 安装与更新
 
@@ -80,6 +80,18 @@ python3 skills/audit-agent-trajectories/scripts/classify_round_stages.py \
 
 主审计的 compact 布局只生成 `report.md`、`audit.json` 和 `findings.jsonl`；旧多文件目录使用 `--output-layout expanded`。轮次归一化默认生成 `summary.json` 和一个 `trajectory-events.jsonl` 事件包，动作/stage 分类各生成一个 JSON；逐轮分类使用 `--include-rounds`。
 
+Trial 或 Job 均可显式加 `--html` 附加离线 `report.html`。Job 同时生成 `report-details/`，提供筛选总览、分布、覆盖矩阵和 Trial/配对静态详情。也可从已有审计独立渲染一份审计或两份 Trial/Job 审计，按需接入归一化请求曲线与人工语义阶段：
+
+```bash
+python3 skills/audit-agent-trajectories/scripts/render_audit_html.py \
+  /path/to/left-audit /path/to/right-audit \
+  --normalized /path/to/normalized-events \
+  --annotations /path/to/presentation.json \
+  --output /path/to/pair-report.html
+```
+
+HTML 保留健康、verifier、交付链、裁决与证据入口，不覆盖人工 findings 或 Markdown。筛选同步更新图表、分母和结论范围；分享 Job 报告时须一起保留同名详情目录。支持范围与标注契约见 [HTML 展示层](skills/audit-agent-trajectories/references/html-presentation.md)。
+
 AEO 可通过版本化 `AnalysisAgentAdapter` 把裁剪、脱敏的 Trial facts 与 addressable
 evidence 交给该方法。此模式不要求把 AEO Trace ZIP 改造成 Harbor 目录，也不允许分析
 结果覆盖 Verifier、Canonical outcome 或人工 Root Cause；契约见
@@ -106,6 +118,8 @@ python3 skills/audit-agent-trajectories/scripts/test_audit_trajectories.py -v
 python3 skills/audit-agent-trajectories/scripts/test_normalize_trajectory_events.py -v
 python3 skills/audit-agent-trajectories/scripts/test_classify_round_actions.py -v
 python3 skills/audit-agent-trajectories/scripts/test_classify_round_stages.py -v
+python3 skills/audit-agent-trajectories/scripts/test_render_audit_html.py -v
+node skills/audit-agent-trajectories/scripts/test_job_statistics.cjs
 npx skills add . --list
 ```
 
