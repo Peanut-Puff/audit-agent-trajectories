@@ -60,6 +60,120 @@ class Parser(HTMLParser):
 
 
 class HtmlPresentationTests(unittest.TestCase):
+    def test_semantic_metrics_cover_observed_values_and_keep_each_missing_field(self) -> None:
+        rounds = normalized_rounds()
+        for row, output, reasoning, cached in zip(rounds, (4, None, 6), (0, 2, None), (3, 4, 40)):
+            row.update(output_tokens=output, reasoning_tokens=reasoning, cache_read_tokens=cached,
+                       tool_call_count=2, reasoning="not-for-html", command="private-command")
+        data = annotations()
+        data["trials"]["left/task"]["semantic_stages"][0]["round_keys"] = ["r1", "r2", "r3"]
+        view = render.build_view([payload()], data, rounds)
+        stage = view["trials"][0]["semantic_stages"][0]
+        self.assertEqual((stage["stage_id"], stage["session_id"], stage["start_round"], stage["end_round"]), ("s1", "main", 1, 3))
+        self.assertEqual(stage["input_observed"], 40)
+        self.assertEqual(stage["output_observed"], 10)
+        self.assertEqual(stage["reasoning_observed"], 2)
+        self.assertEqual(stage["uncached_observed"], 7)
+        self.assertEqual([stage[name + "_missing"] for name in ("input", "output", "reasoning", "uncached")], [1, 1, 1, 2])
+        self.assertEqual(stage["tool_calls"], 6)
+        self.assertEqual(view["trials"][0]["curves"][0]["points"][1]["semantic_ref"], stage["ref"])
+        self.assertNotIn("not-for-html", json.dumps(view))
+        self.assertNotIn("private-command", json.dumps(view))
+
+    def test_semantic_stages_reject_cross_session_gaps_order_and_duplicate_ids(self) -> None:
+        for error in ("session", "gap", "order", "id"):
+            data, rounds = annotations(), normalized_rounds()
+            phases = data["trials"]["left/task"]["semantic_stages"]
+            if error == "session":
+                phases[0]["round_keys"] = ["r1", "r2"]
+                rounds[1]["session_id"] = "aux"
+            elif error == "gap":
+                phases[0]["round_keys"] = ["r1", "r3"]
+            else:
+                other = {**phases[0], "round_keys": ["r3"]}
+                if error == "order":
+                    phases.insert(0, other)
+                else:
+                    phases[0]["stage_id"] = other["stage_id"] = "same"
+                    phases.append(other)
+            with self.subTest(error=error), self.assertRaises(ValueError):
+                render.build_view([payload()], data, rounds)
+
+    def test_many_to_one_alignment_preserves_chronology_unknown_side_and_missing_usage(self) -> None:
+        left, right = payload(), payload("right/task")
+        rounds = normalized_rounds()
+        right_rounds = [{**row, "trial_key": "right/task", "round_key": "right-" + row["round_key"]} for row in rounds]
+        data = annotations()
+        first = data["trials"]["left/task"]["semantic_stages"][0]
+        first.update(stage_id="first", title="初次类型实验", duration_sec=1)
+        data["trials"]["left/task"]["semantic_stages"].extend([
+            {**first, "stage_id": "middle", "title": "实现", "round_keys": ["r2"]},
+            {**first, "stage_id": "revisit", "title": "类型实验重开", "round_keys": ["r3"]},
+        ])
+        data["trials"]["right/task"] = {"semantic_stages": [{**first, "stage_id": "right", "round_keys": ["right-r1", "right-r2", "right-r3"]}]}
+        data["semantic_alignment"] = [{"title": "类型实验", "stages": {"left/task": ["first", "revisit"], "right/task": ["right"]}}]
+        view = render.build_view([left, right], data, rounds + right_rounds)
+        self.assertEqual([s["stage_id"] for s in view["trials"][0]["semantic_stages"]], ["first", "middle", "revisit"])
+        aligned = view["semantic_alignment"][0]["sides"]
+        self.assertEqual(aligned[0]["input_observed"], 40)
+        self.assertEqual(aligned[0]["rounds"], 2)
+        self.assertEqual([(r["start_round"], r["end_round"]) for r in aligned[0]["ranges"]], [(1, 1), (3, 3)])
+        self.assertIsNone(aligned[0]["duration_sec"])
+        self.assertEqual(aligned[1]["input_missing"], 1)
+        unmatched = view["semantic_alignment"][1]
+        self.assertEqual(unmatched["sides"][0]["rounds"], 1)
+        self.assertIsNone(unmatched["sides"][0]["input_observed"])
+        self.assertIsNone(unmatched["sides"][1])
+        for mapping in ({"left/task": ["first", "first"]}, {"left/task": ["missing"]}, {"other/task": ["first"]}):
+            data["semantic_alignment"][0]["stages"] = mapping
+            with self.subTest(mapping=mapping), self.assertRaises(ValueError):
+                render.build_view([left, right], data, rounds + right_rounds)
+
+    def test_alignment_is_scoped_for_job_details_and_suppressed_for_metrics(self) -> None:
+        data = annotations()
+        data["semantic_alignment"] = [{"title": "private-semantic-marker", "stages": {"left/task": ["s1"], "right/task": ["s2"]}}]
+        scoped = render.scoped_annotations(data, ["left/task"])
+        self.assertEqual(scoped["semantic_alignment"][0]["stages"], {"left/task": ["s1"]})
+        view = render.build_view([payload(depth="metrics")], scoped, normalized_rounds())
+        self.assertEqual(view["semantic_alignment"], [])
+        self.assertNotIn("private-semantic-marker", json.dumps(view))
+
+    def test_signed_contribution_closes_with_residue_and_handles_zero_missing_and_absence(self) -> None:
+        def view(key: str, values: list[int], total: int) -> dict:
+            return {"trial_key": key, "depth": "full", "adapter": "bitfun", "semantics": "includes_cache",
+                    "tokens": {"input_tokens": total, "request_count": len(values), "status": "complete",
+                               "coverage": {"authoritative_source": "result_agent_results"}},
+                    "reconciliation": {"normalized_rounds": len(values), "semantic_assigned_rounds": len(values),
+                                       "usage_subtotals": {"input_observed": sum(values), "input_missing": 0,
+                                                           "output_observed": None, "output_missing": len(values),
+                                                           "reasoning_observed": None, "reasoning_missing": len(values),
+                                                           "uncached_observed": None, "uncached_missing": len(values)}}}
+        left, right = view("left", [6, 4], 10), view("right", [2, 9, 7], 20)
+        groups = [{"sides": [{"input_observed": 6, "input_missing": 0, "rounds": 1}, {"input_observed": 2, "input_missing": 0, "rounds": 1}]},
+                  {"sides": [{"input_observed": 4, "input_missing": 0, "rounds": 1}, {"input_observed": 9, "input_missing": 0, "rounds": 1}]},
+                  {"sides": [None, {"input_observed": 7, "input_missing": 0, "rounds": 1}], "absence_confirmed": [True, False]}]
+        def calculate():
+            return render.prepare_alignment_contributions([left, right], groups, {"grade": "conditional"}, render.Evidence())["input_observed"]
+        account = calculate()
+        self.assertEqual([item["delta"] for item in account["items"]], [-4, 5, 7])
+        self.assertEqual([item["share"] for item in account["items"]], [-0.4, 0.5, 0.7])
+        self.assertEqual(account["residual_delta"], 2)
+        self.assertAlmostEqual(sum(x["share"] for x in account["items"]) + account["residual_share"], 1)
+        right["tokens"]["input_tokens"] = 10
+        account = calculate()
+        self.assertEqual(account["denominator"], 0)
+        self.assertTrue(all(item["share"] is None for item in account["items"]))
+        right["tokens"]["input_tokens"] = 11
+        self.assertEqual(calculate()["items"][2]["share"], 7)
+        groups[2]["absence_confirmed"] = [False, False]
+        self.assertIsNone(calculate()["items"][2]["delta"])
+        self.assertIsNone(calculate()["residual_delta"])
+        right["reconciliation"]["usage_subtotals"]["input_missing"] = 1
+        self.assertIsNone(calculate()["denominator"])
+        right["reconciliation"]["usage_subtotals"]["input_missing"] = 0
+        right["adapter"] = "opencode"
+        self.assertIsNone(calculate()["denominator"])
+
     def test_unknown_result_stays_unknown_and_no_failure_cause_is_generated(self) -> None:
         view = render.build_view([payload()])
         trial = view["trials"][0]

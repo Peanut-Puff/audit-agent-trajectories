@@ -4,6 +4,12 @@
 
 当问题涉及模型轮次、工具调用、探索/编辑/验证分布或 E/B/I/V/P 阶段时，先生成跨 adapter 的最小事件账本，再按需运行独立分类器。脚本输出是 measurement 或 heuristic projection，不解释质量、动机或根因。
 
+## 默认阶段口径
+
+- 整个 Job / 配对 Job：首选 E/B/I/V/P，便于全量阶段统计和跨任务概览；保留 heuristic、缺失与不确定边界。
+- 单 Trial / 一对 Trial / Job 下钻详情：默认使用[人工语义时序](semantic-trial-analysis.md)，按真实工作目标、方案实验、集成、测试返修和交付细分。自动 E/B/I/V/P 只作辅助依据，不能替代深读。
+- `metrics` 只输出确定性指标与明确标记的 heuristic，不推断语义或补写机制；用户显式要求的口径优先。
+
 ## 事件归一化
 
 ```bash
@@ -53,6 +59,8 @@ python3 scripts/classify_round_stages.py /path/to/normalized-events \
 Stable green 是最后一个失败/未知 validation 之后，后续 validation 全部成功时的第一个成功 round。输出默认只有 `round-stages.json`，包含 manifest、job summary 和逐 trial/session 边界；逐轮 stage 需加 `--include-rounds`。
 
 Stage 是根据 mutation/validation 事件投影的启发式边界，不是 runtime 原生 phase。临时 probe、管道掩盖 exit code、未知 validation 结果或日志缺失都会影响边界；比较时必须同时报告无法形成 B/P 的 trace 数和 unknown validation 数。
+
+临时编译实验、lint 成功或 shell exit=0 不能称为任务已经验收完成。确认“首次全库通过”“最终候选验证通过”等里程碑时必须读取具体命令、检查范围、完整相关诊断与后续修改；自动 stable-green 不提供这层保证。
 
 ## 完成检查
 

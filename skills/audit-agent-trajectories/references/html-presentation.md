@@ -2,6 +2,13 @@
 
 HTML 是显式启用、可重建的附加输出。事实仍来自 `audit.json` 或 expanded 的 generated 文件；裁决仍来自人工 `findings.jsonl`。渲染器不生成根因，不读取完整原始轨迹，不覆盖 findings 或 `report.md`。运行时只依赖 Python 3.10+ 标准库；CSS、JS 和当前页面数据嵌入 HTML，不访问 CDN。Job 详情以相邻静态目录交付。
 
+## 按范围选择默认版式
+
+- 整个 Job / 配对 Job：阶段分析首选 E/B/I/V/P，保留既有全量筛选、分母、分布与下钻；不要求人工标注全体 Trial。
+- 单 Trial / 配对 Trial / Job 下钻详情：默认沿用[人工语义时序报告](audits/semantic-trial-analysis.md)。页面先放结果与可信范围，再放各侧真实时序、同目标对齐、请求曲线、机制与证据。阶段按目标/方案/反馈细分，不按 E/B/I/V/P 代替语义；无标注时提示尚未深读，不自动生成语义。
+- 复用 `assets/html/report.js`、`report.css` 与通用渲染器，按任务填写人工标注；不要复制某个任务报告的硬编码数据或分析器。
+- 页面和内嵌数据只包含聚合测量、有界人工摘要与证据位置，不嵌入每个 turn 原文、完整 prompt/reasoning、命令参数或 observation；折叠显示也不例外。
+
 ## 单 Trial、Job 与配对输入
 
 提取时加 `--html`：
@@ -23,7 +30,7 @@ python3 scripts/render_audit_html.py /path/to/left-audit /path/to/right-audit \
   --output /path/to/pair-report.html
 ```
 
-输入可为 compact 审计目录、`audit.json` 或 expanded 根目录。`mode=job` 或多于两个 Trial 自动生成 Job 总览；接受一份 paired 审计或两份单 Job 审计生成双 Job 比较。单 Trial 和一对 Trial 使用原视图。Trial key 必须唯一，身份冲突不做自动改名；不把两份 paired 审计合成四组。
+输入可为 compact 审计目录、`audit.json` 或 expanded 根目录。`mode=job` 或多于两个 Trial 自动生成 Job 总览；接受一份 paired 审计或两份单 Job 审计生成双 Job 比较。单 Trial 和一对 Trial 使用人工语义时序版式。Trial key 必须唯一，身份冲突不做自动改名；不把两份 paired 审计合成四组。
 
 ```bash
 python3 scripts/audit_trajectories.py /path/to/job \
@@ -57,7 +64,9 @@ Job 交付包含 `report.html` 与 `report-details/`，后者预生成 Trial 与
 
 输出、Reasoning 和未缓存输入分别累计，缺失与断线各自记录；Reasoning 不重复加入输出。未缓存输入仅在 `includes_cache` 下使用非负的输入减缓存读取，`excludes_cache` 下使用报告输入；缓存关系未知、读取数缺失或大于输入时不推算。
 
-## 可选人工展示标注
+## Trial 人工展示标注
+
+标注是 renderer 的可选输入，也是默认 Trial 深读报告应主动完成的分析产物；原始证据不足或 `metrics` 模式时保留空缺。
 
 `trial-presentation/1` 是独立展示输入，不能修改机器事实或替代 Finding。示例为合成占位值，实际 round key 从归一化事件读取：
 
@@ -73,6 +82,7 @@ Job 交付包含 `report.html` 与 `report-details/`，后者预生成 Trial 与
       "round_elapsed_sec": {"job/task/main/000001": 1.2},
       "semantic_stages": [
         {
+          "stage_id": "s1",
           "title": "查询接通",
           "goal": "让查询路径满足任务契约",
           "actions": "连接入口与核心实现",
@@ -92,9 +102,28 @@ Job 交付包含 `report.html` 与 `report-details/`，后者预生成 Trial 与
 
 `input_token_semantics` 只能为 `includes_cache|excludes_cache|unknown`，从原始账本确认，不凭 adapter 名猜测。`round_elapsed_sec` 必须指向已知 round、非负、会话内单调，并提供来源；显示的全部请求均有时间时才启用执行时间轴。否则默认请求序号，不按轮次插值时间。
 
-语义阶段须有 `round_keys`、`annotation_method` 和 `evidence_refs`。同一请求不得重复计入多个语义阶段；未知 key 或重叠标注报错。可选 `alignment_key` 在同一 Trial 内须唯一，明确两侧阶段对应关系；否则只对齐两侧唯一的同名阶段，重复名称分列，不按顺序猜测对应。
+语义阶段须有 `round_keys`、`annotation_method` 和 `evidence_refs`。每段限同 session 中连续的已观察请求，按各 session 时间顺序列出；跨会话、未知 key、重叠、跳段和倒序标注报错。`stage_id` 为 Trial 内唯一非空字符串，省略时按展示顺序生成 `s1`、`s2`。缺失的主请求单列；不要求把辅助请求纳入主时间线。
 
-阶段首屏按 **轮次 → 耗时 → token** 展示蓝橙横条与实际值；每项指标在所有阶段共用刻度，条长表示实际消耗。只有配对及该指标口径满足时显示差值/倍数；缺失保留空缺，部分输入使用斜线并标明缺失轮数。单 Trial 使用同一组件展示阶段内用量。目标、关键动作、结果、异常和标注限制按需展开。自动 E/B/I/V/P 仍在依据中注明 heuristic、边界和来源。辅助/未归属请求、请求 token 与 Trial 账本差额另列；差额不直接解释为浪费。未解释时间保持未知，重叠生命周期 phase 不相加。
+可选 `alignment_key` 在同一 Trial 内须唯一，明确两侧一对一阶段对应；否则只对齐两侧唯一的同名阶段，重复名称分列，不按顺序猜测对应。更细粒度允许在顶层 `semantic_alignment` 手工将同侧多个阶段归为一个目标，原时序不变。例如：
+
+```json
+{
+  "semantic_alignment": [
+    {
+      "title": "类型边界实验与修订",
+      "summary": "左侧分两次推进，右侧集中返修；检查范围并不完全相同。",
+      "stages": {"left/task": ["s3", "s7"], "right/task": ["s5"]},
+      "evidence_refs": ["/absolute/source/review#boundary"]
+    }
+  ]
+}
+```
+
+此字段与 `trials` 同级，不是完整标注文件。同一 stage 不得进入两个对齐目标；缺少某一侧时显示“无独立对应段”，不能填0。未列入映射的阶段保留独立行。多段归并仅相加有值的 token/request 并保留缺失计数和原范围，不将多段 duration 自动相加为可比耗时。
+
+对齐表增加有符号的“右−左差额”和“占总差异比例”，随指标切换。总账完整时以其差额为分母，否则明确为已观察主请求小计；辅助/未归属差额单列。负值抵消，允许超过100%，总差额为0时不算占比；不称因果贡献。缺失或口径未对齐时不补零计算。只有同侧主请求全部归属且证据确认真实无对应工作时，可在目标映射里添加 `"absence_confirmed": ["left/task"]` 和 `evidence_refs`，将单侧独有工作归入差额；界面仍保留“无独立对应段”。
+
+阶段首屏保留每侧的连续时序，显示标题、session/请求范围、请求/工具数、动作和观察结果；蓝橙消耗条可切输入（默认）、输出、reasoning、非缓存输入、请求数、时间窗口，所有阶段共用刻度。另用同目标表对齐阶段，并保留所有原范围。只有配对及该指标口径满足时才计算差值/倍数；默认可只并列展示。缺失保留空缺，部分指标用斜线并标明缺失轮数。单 Trial 使用同一组件展示本侧。目标、异常和标注限制可从证据抽屉查看。自动 E/B/I/V/P 在辅助依据中注明 heuristic、边界和来源，不称任务已经验收。辅助/未归属请求、请求 token 与 Trial 账本差额另列；差额不直接解释为浪费。未解释时间保持未知，重叠生命周期 phase 不相加。
 
 现有 Findings 至少用 `trial_key` 关联；缺少对应身份的记录计数并排除，不猜测归属。展示支持 `finding_id`、`candidate_ref(s)`、`focus`、`finding_type`、`adjudication`、`status`、`summary`、`observation`、`direct_evidence`、`evidence_paths`、`interpretation`、`alternative_explanations`、`confidence`、`limitations`、`analyst`、`timestamp`，以及根因的 `first_error_decision`、`key_implementation`、`verifier_consequence`。没有字段时不补做分析，未知字段不整体嵌入 HTML；完整原文留在人工文件。
 

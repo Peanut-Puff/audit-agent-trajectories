@@ -2,7 +2,7 @@
 
 面向 Harbor、DeepSWE、Pier 及类似 coding-agent evaluation 的证据化轨迹审计 skill。它先判断数据的可分析性与可比性，再分别审计环境、评测完整性、Token、耗时、得分、交付链、失败模式和首个 consequential break。
 
-当前版本：`v2.9.0`。
+当前版本：`v2.10.0`。
 
 ## 安装与更新
 
@@ -79,6 +79,8 @@ python3 skills/audit-agent-trajectories/scripts/classify_round_stages.py \
 ```
 
 主审计的 compact 布局只生成 `report.md`、`audit.json` 和 `findings.jsonl`；旧多文件目录使用 `--output-layout expanded`。轮次归一化默认生成 `summary.json` 和一个 `trajectory-events.jsonl` 事件包，动作/stage 分类各生成一个 JSON；逐轮分类使用 `--include-rounds`。
+
+阶段视图默认按范围选择：**整个 Job / 配对 Job 首选 E/B/I/V/P 概览；单 Trial、一对 Trial 与 Job 下钻详情首选人工语义细分**。Trial 报告依次保留各侧真实时序、同目标对齐、五项请求曲线和机制证据；只展示聚合与有界摘要，不嵌入逐 turn 原文。分段依任务目标、方案和返修变化决定，不固定阶段名称或数量。方法见 [Trial 人工语义时序](skills/audit-agent-trajectories/references/audits/semantic-trial-analysis.md)。
 
 Trial 或 Job 均可显式加 `--html` 附加离线 `report.html`。Job 同时生成 `report-details/`，提供筛选总览、分布、覆盖矩阵和 Trial/配对静态详情。也可从已有审计独立渲染一份审计或两份 Trial/Job 审计，按需接入归一化请求曲线与人工语义阶段：
 

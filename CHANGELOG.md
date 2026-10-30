@@ -2,6 +2,26 @@
 
 本项目遵循 Semantic Versioning。日期使用 `YYYY-MM-DD`。
 
+## [2.10.0] - 2026-10-30
+
+### Added
+
+- 沉淀 Trial 人工语义时序方法：按真实目标、方案实验、集成、测试返修和交付细分，保留每侧独立时序，再按目标明确对齐。
+- 通用 Trial HTML 增加时序双列、六项阶段消耗切换、同目标多段归并与原范围、请求曲线到语义证据的入口；不内嵌逐 turn 原文。
+- `trial-presentation/1` 兼容增加 `stage_id` 和顶层 `semantic_alignment`；多段目标汇总保留缺失与未对应项。
+- 同目标表增加有符号差额与占总差异比例，保留负值抵消、零分母、辅助/未归属余量和可比性限制；独有工作需显式证据确认。
+
+### Changed
+
+- 整个 Job / 配对 Job 阶段分析首选既有 E/B/I/V/P；单 Trial / 配对 Trial / 下钻详情默认人工语义细分，`metrics` 继续不产生语义解释。
+- 人工阶段校验同 session 连续性、顺序、重复及对齐身份；聚合增加输出、reasoning、cache、非缓存输入及各项缺失数。
+- 明确临时 probe、lint 或 exit=0 不是任务验收；逐请求与总账先对齐，字符组成不冒充 token 贡献，缓存输入差不冒充费用差。
+
+### Compatibility
+
+- 公共 audit schema、自动阶段分类规则及 E/B/I/V/P 语义、默认 compact 三文件契约不变；AEO runtime 仅同步方法版本，不改变其 JSON/prompt 契约。
+- 人工 stages 可省略 `stage_id`，由顺序生成；旧的跨 session、非连续或倒序阶段需拆为时序子段，再显式按目标归并。
+
 ## [2.9.0] - 2026-10-29
 
 ### Changed

@@ -79,6 +79,8 @@ Finding 至少包含 candidate 引用、`adjudication=confirmed|rejected|indeter
 
 ## 单 Trial 深读模板
 
+默认采用[人工语义时序报告](audits/semantic-trial-analysis.md)：任务内目标/方案/返修细分，单 Trial 按时间展示，一对 Trial 先各自时序再同目标对齐；不以 E/B/I/V/P 替代人工深读。下面的失败证据链作为报告的必要内容，按任务需要放入正文或证据抽屉。整个 Job 阶段概览首选 E/B/I/V/P。
+
 ```markdown
 # <task> / <job>
 

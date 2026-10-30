@@ -113,6 +113,27 @@ def metric(label: str, value: Any, source: Any, evidence: Evidence, unit: str = 
     return {"label": label, "value": value, "unit": unit, "ref": ref, "note": note, "valid": int(present)}
 
 
+def summarize_usage(rows: list[dict[str, Any]], semantics: str) -> dict[str, Any]:
+    """Observed subtotals only. Missing metrics remain null, never synthetic zero."""
+    summary: dict[str, Any] = {}
+    fields = {"input": "input_tokens", "output": "output_tokens", "reasoning": "reasoning_tokens", "cache": "cache_read_tokens"}
+    for label, field in fields.items():
+        values = [row[field] for row in rows if numeric(row.get(field)) and row[field] >= 0]
+        summary[label + "_observed"] = sum(values) if values else None
+        summary[label + "_missing"] = len(rows) - len(values)
+    fresh = []
+    for row in rows:
+        value, cached = row.get("input_tokens"), row.get("cache_read_tokens")
+        if not numeric(value) or value < 0:
+            continue
+        if semantics == "excludes_cache":
+            fresh.append(value)
+        elif semantics == "includes_cache" and numeric(cached) and 0 <= cached <= value:
+            fresh.append(value - cached)
+    summary.update(uncached_observed=sum(fresh) if fresh else None, uncached_missing=len(rows) - len(fresh))
+    return summary
+
+
 def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: dict[str, Any],
                   rounds: list[dict[str, Any]], calls: list[dict[str, Any]], evidence: Evidence) -> dict[str, Any]:
     key = record["trial_key"]
@@ -143,6 +164,7 @@ def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: d
     if not isinstance(annotation.get("semantic_stages", []), list):
         raise ValueError(f"semantic_stages must be an array: {key}")
     curves = []
+    points_by_key: dict[str, dict[str, Any]] = {}
     # Preserve session boundaries: sorting unrelated sessions into one ordinal would imply chronology.
     grouped: dict[str, list[dict[str, Any]]] = {}
     for row in classified:
@@ -181,12 +203,17 @@ def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: d
                            "cumulative_output": cumulative["output"], "cumulative_reasoning": cumulative["reasoning"],
                            "cumulative_uncached": cumulative["uncached"], "usage": {**values},
                            "elapsed": time, "ref": ref, "gap": gaps["input"], "gaps": gaps.copy()})
+            points_by_key[row["round_key"]] = points[-1]
         curves.append({"session": session, "points": points})
 
     assigned: set[str] = set()
     alignment_keys: set[str] = set()
+    stage_ids: set[str] = set()
+    session_positions = {session: {row["round_key"]: index for index, row in enumerate(sorted(rows, key=lambda r: r.get("round_index", 0)))}
+                         for session, rows in grouped.items()}
+    last_position: dict[str, int] = {}
     semantic = []
-    for phase in annotation.get("semantic_stages", []):
+    for phase_index, phase in enumerate(annotation.get("semantic_stages", []), 1):
         if not isinstance(phase, dict) or not isinstance(phase.get("round_keys"), list) or not phase["round_keys"]:
             raise ValueError(f"semantic stage requires nonempty round_keys: {key}")
         members = phase["round_keys"]
@@ -194,7 +221,19 @@ def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: d
             raise ValueError(f"unknown or overlapping semantic stage rounds: {key}")
         assigned.update(members)
         rows = [row for row in own_rounds if row["round_key"] in members]
-        values = [row["input_tokens"] for row in rows if numeric(row.get("input_tokens"))]
+        sessions = {str(row.get("session_id")) for row in rows}
+        if len(sessions) != 1:
+            raise ValueError(f"semantic stage cannot join sessions: {key}")
+        session = next(iter(sessions))
+        rows.sort(key=lambda r: session_positions[session][r["round_key"]])
+        positions = [session_positions[session][row["round_key"]] for row in rows]
+        if positions != list(range(positions[0], positions[-1] + 1)) or positions[0] <= last_position.get(session, -1):
+            raise ValueError(f"semantic stages must be contiguous and chronological within session: {key}")
+        last_position[session] = positions[-1]
+        stage_id = phase.get("stage_id", f"s{phase_index}")
+        if not isinstance(stage_id, str) or not stage_id.strip() or stage_id in stage_ids:
+            raise ValueError(f"semantic stage_id must be unique and nonempty: {key}")
+        stage_ids.add(stage_id)
         item = select_fields(phase, "title alignment_key goal actions result duration_sec anomalies evidence_refs annotation_method uncertainty")
         alignment_key = phase.get("alignment_key")
         if alignment_key is not None:
@@ -205,11 +244,16 @@ def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: d
             raise ValueError(f"semantic duration_sec must be nonnegative or null: {key}")
         if not item.get("annotation_method") or not item.get("evidence_refs"):
             raise ValueError(f"semantic stage requires annotation_method and evidence_refs: {key}")
-        item.update({"rounds": len(rows), "input_observed": sum(values) if values else None, "input_missing": len(rows) - len(values)})
+        item.update({"stage_id": stage_id, "session_id": session,
+                     "start_round": rows[0].get("round_index"), "end_round": rows[-1].get("round_index"),
+                     "rounds": len(rows), "tool_calls": sum(row.get("tool_call_count") or 0 for row in rows),
+                     **summarize_usage(rows, semantics)})
         if depth != "metrics":
             item["ref"] = evidence.add(f"语义阶段 / {phase.get('title')}", item.copy(), phase.get("evidence_refs"),
                                        "人工理解后的语义标注；持续时间为标注值，不自动将多会话或重叠区间相加。")
             semantic.append(item)
+            for member in members:
+                points_by_key[member].update(semantic_title=item["title"], semantic_ref=item["ref"])
     observed = [row["input_tokens"] for row in own_rounds if numeric(row.get("input_tokens"))]
     observed_total = sum(observed) if observed else None
     ledger_input = tokens.get("input_tokens")
@@ -222,6 +266,7 @@ def prepare_trial(payload: dict[str, Any], record: dict[str, Any], annotation: d
         "time_annotated_rounds": len(elapsed), "unexplained_time_sec": None,
         "note": "差额只有确认同一请求总体与 token 口径后才能解释；未解释时间保持未知，生命周期 phase 可能重叠。",
     }
+    reconciliation["usage_subtotals"] = summarize_usage(own_rounds, semantics)
     reconciliation_ref = evidence.add("阶段与账本对账", reconciliation, source)
 
     def m(label: str, value: Any, unit: str = "", note: str = "", provenance: Any = None) -> dict[str, Any]:
@@ -331,8 +376,156 @@ def build_view(payloads: list[dict[str, Any]], annotations: dict[str, Any] | Non
              for payload, record in records]
     pair = prepare_pair(records[0][1], records[1][1], views, evidence) if len(records) == 2 else None
     unmatched = sum(1 for payload in payloads for row in payload.get("findings", []) if row.get("trial_key") not in keys)
-    return clean({"presentation_version": PRESENTATION_VERSION, "trials": views, "pair": pair, "evidence": evidence.rows,
+    alignment = prepare_semantic_alignment(views, annotations, evidence)
+    contributions = prepare_alignment_contributions(views, alignment, pair, evidence)
+    return clean({"presentation_version": PRESENTATION_VERSION, "stage_mode": "manual_semantic", "semantic_alignment": alignment,
+                  "alignment_contributions": contributions,
+                  "trials": views, "pair": pair, "evidence": evidence.rows,
                   "unmatched_findings": unmatched, "scope": "单 Trial" if len(records) == 1 else "配对 Trial"})
+
+
+def prepare_semantic_alignment(views: list[dict[str, Any]], annotations: dict[str, Any], evidence: Evidence) -> list[dict[str, Any]]:
+    """Group reviewed stages by goal without changing either chronological sequence."""
+    if any(view["depth"] == "metrics" for view in views):
+        return []
+    explicit = annotations.get("semantic_alignment")
+    if explicit is None:
+        groups: dict[str, dict[str, Any]] = {}
+        title_counts = [Counter(p.get("title") for p in view["semantic_stages"]) for view in views]
+        for view in views:
+            for stage in view["semantic_stages"]:
+                title = stage.get("title")
+                identity = ("key:" + stage["alignment_key"] if stage.get("alignment_key") else
+                            "title:" + str(title) if title and all(c[title] <= 1 for c in title_counts) else
+                            view["trial_key"] + ":" + stage["stage_id"])
+                group = groups.setdefault(identity, {"title": title, "stages": {}})
+                group["stages"].setdefault(view["trial_key"], []).append(stage["stage_id"])
+        explicit = list(groups.values())
+    if not isinstance(explicit, list):
+        raise ValueError("semantic_alignment must be an array")
+    by_key = {v["trial_key"]: {p["stage_id"]: p for p in v["semantic_stages"]} for v in views}
+    assigned: set[tuple[str, str]] = set()
+    result = []
+    for group in explicit:
+        if not isinstance(group, dict) or not group.get("title") or not isinstance(group.get("stages"), dict) or not group["stages"]:
+            raise ValueError("semantic alignment requires a title and nonempty stages mapping")
+        if set(group["stages"]) - set(by_key):
+            raise ValueError("semantic alignment trial is outside displayed scope")
+        sides = []
+        for view in views:
+            key = view["trial_key"]
+            ids = group["stages"].get(key, [])
+            if not isinstance(ids, list) or any(not isinstance(s, str) or s not in by_key[key] for s in ids):
+                raise ValueError("semantic alignment refers to unknown stage_id")
+            if len(ids) != len(set(ids)) or any((key, s) in assigned for s in ids):
+                raise ValueError("semantic alignment repeats a stage")
+            assigned.update((key, s) for s in ids)
+            phases = [p for p in view["semantic_stages"] if p["stage_id"] in ids]
+            if not phases:
+                sides.append(None)
+                continue
+            side = {"rounds": sum(p["rounds"] for p in phases),
+                    "duration_sec": phases[0].get("duration_sec") if len(phases) == 1 else None,
+                    "ranges": [select_fields(p, "session_id start_round end_round title ref") for p in phases]}
+            for name in ("input", "output", "reasoning", "cache", "uncached"):
+                values = [p[name + "_observed"] for p in phases if numeric(p.get(name + "_observed"))]
+                side[name + "_observed"] = sum(values) if values else None
+                side[name + "_missing"] = sum(p[name + "_missing"] for p in phases)
+            sides.append(side)
+        absence = group.get("absence_confirmed", [])
+        if not isinstance(absence, list) or any(key not in by_key or group["stages"].get(key) for key in absence):
+            raise ValueError("absence_confirmed must name displayed trials with no mapped stage")
+        if absence and not group.get("evidence_refs"):
+            raise ValueError("confirmed structural absence requires evidence_refs")
+        item = {"title": group["title"], "summary": group.get("summary"), "sides": sides,
+                "absence_confirmed": [v["trial_key"] in absence for v in views]}
+        item["ref"] = evidence.add("同目标对齐 / " + str(group["title"]), item.copy(), group.get("evidence_refs"),
+                                   "按目标归并；原始时序与全部请求范围保留，一侧缺少对应阶段保持 null。")
+        result.append(item)
+    # Partial manual maps are allowed, but omitted stages remain visible as unmatched goals.
+    if annotations.get("semantic_alignment") is not None:
+        for index, view in enumerate(views):
+            for phase in view["semantic_stages"]:
+                if (view["trial_key"], phase["stage_id"]) not in assigned:
+                    side = {**{k: v for k, v in phase.items() if k.endswith("_observed") or k.endswith("_missing")},
+                            "rounds": phase["rounds"], "duration_sec": phase.get("duration_sec"),
+                            "ranges": [select_fields(phase, "session_id start_round end_round title ref")]}
+                    result.append({"title": phase.get("title") or phase["stage_id"], "summary": "未纳入人工对齐的阶段，保留独立展示。",
+                                   "sides": [side if i == index else None for i in range(len(views))], "ref": phase["ref"]})
+    return result
+
+
+def prepare_alignment_contributions(views: list[dict[str, Any]], groups: list[dict[str, Any]],
+                                    pair: dict[str, Any] | None, evidence: Evidence) -> dict[str, Any]:
+    """Signed accounting shares; do not infer missing-side zeros or causal effects."""
+    if len(views) != 2 or not groups or any(v["depth"] == "metrics" for v in views):
+        return {}
+    result = {}
+    metrics = {"input_observed": "input_tokens", "output_observed": "output_tokens",
+               "reasoning_observed": "reasoning_tokens", "uncached_observed": None, "rounds": "request_count"}
+    for metric_name, ledger_field in metrics.items():
+        exclusions = []
+        if not pair or pair["grade"] not in {"strict", "conditional"}:
+            exclusions.append("配对资格不满足")
+        if metric_name != "rounds":
+            left, right = views
+            if any(v["tokens"].get("status") != "complete" for v in views):
+                exclusions.append("总账覆盖不完整")
+            if left["semantics"] == "unknown" or left["semantics"] != right["semantics"] or not left.get("adapter") or left["adapter"] != right.get("adapter") or not audit.nested(left, "tokens", "coverage", "authoritative_source") or audit.nested(left, "tokens", "coverage", "authoritative_source") != audit.nested(right, "tokens", "coverage", "authoritative_source"):
+                exclusions.append("跨侧缓存语义或账本来源未对齐")
+        elif not views[0].get("adapter") or views[0]["adapter"] != views[1].get("adapter"):
+            exclusions.append("跨 adapter 请求计量口径未对齐")
+        if metric_name == "rounds":
+            observed = [v["reconciliation"]["normalized_rounds"] for v in views]
+        else:
+            prefix = metric_name.removesuffix("_observed")
+            observed = [v["reconciliation"]["usage_subtotals"][metric_name] for v in views]
+            if any(v["reconciliation"]["usage_subtotals"][prefix + "_missing"] for v in views):
+                exclusions.append("逐请求指标存在缺失")
+        if any(not numeric(x) for x in observed):
+            exclusions.append("逐请求指标不可用")
+        totals = [v["tokens"].get(ledger_field) if ledger_field else None for v in views]
+        if metric_name == "uncached_observed":
+            totals = []
+            for v in views:
+                value, cached = v["tokens"].get("input_tokens"), v["tokens"].get("cache_read_tokens")
+                totals.append(value - cached if v["semantics"] == "includes_cache" and numeric(value) and numeric(cached) and 0 <= cached <= value else
+                              value if v["semantics"] == "excludes_cache" and numeric(value) else None)
+        canonical = all(numeric(x) for x in totals)
+        if not canonical:
+            totals = observed
+        elif metric_name == "rounds" and any(total < value for total, value in zip(totals, observed)):
+            exclusions.append("总账请求数小于已观察请求，范围未对账")
+        denominator = totals[1] - totals[0] if all(numeric(x) for x in totals) and not exclusions else None
+        items = []
+        for group in groups:
+            values, why, structural = [], [], False
+            for index, side in enumerate(group["sides"]):
+                if side is None:
+                    complete_partition = views[index]["reconciliation"]["semantic_assigned_rounds"] == views[index]["reconciliation"]["normalized_rounds"]
+                    if group.get("absence_confirmed", [False] * len(views))[index] and complete_partition:
+                        values.append(0)  # Accounting identity for reviewed absence, not a missing metric.
+                        structural = True
+                    else:
+                        values.append(None)
+                        why.append("一侧无对应标注，未证实为独有工作")
+                else:
+                    values.append(side.get(metric_name))
+                    if metric_name != "rounds" and side.get(metric_name.removesuffix("_observed") + "_missing"):
+                        why.append("阶段指标存在缺失")
+            delta = values[1] - values[0] if all(numeric(x) for x in values) and not why and not exclusions else None
+            items.append({"delta": delta, "share": delta / denominator if numeric(delta) and numeric(denominator) and denominator != 0 else None,
+                          "structural_absence": structural, "exclusions": why + exclusions})
+        complete = all(numeric(x["delta"]) for x in items)
+        residual = denominator - sum(x["delta"] for x in items) if numeric(denominator) and complete else None
+        fact = {"denominator": denominator, "scope": "公共总账差异" if canonical else "已观察主请求小计差异",
+                "items": items, "residual_delta": residual,
+                "residual_share": residual / denominator if numeric(residual) and numeric(denominator) and denominator != 0 else None,
+                "complete_partition": complete, "exclusions": exclusions,
+                "note": "右减左 / 同范围总差异；负值抵消，允许超过100%，总差异为0时占比无定义。账目分解不是因果贡献；差额另列为辅助/未归属。"}
+        fact["ref"] = evidence.add("同目标差额占比 / " + metric_name, fact.copy(), [v["trial_key"] for v in views], fact["note"])
+        result[metric_name] = fact
+    return result
 
 
 def detail_filename(key: str, prefix: str = "trial") -> str:
@@ -375,7 +568,12 @@ def scoped_payload(payload: dict[str, Any], record: dict[str, Any]) -> dict[str,
 def scoped_annotations(annotations: dict[str, Any] | None, keys: list[str]) -> dict[str, Any]:
     if annotations is None:
         return {"schema_version": ANNOTATION_VERSION, "trials": {}}
-    return {**annotations, "trials": {key: value for key, value in annotations["trials"].items() if key in keys}}
+    scoped = {**annotations, "trials": {key: value for key, value in annotations["trials"].items() if key in keys}}
+    if "semantic_alignment" in annotations:
+        scoped["semantic_alignment"] = [{**group, "stages": {key: ids for key, ids in group["stages"].items() if key in keys},
+                                         "absence_confirmed": [key for key in group.get("absence_confirmed", []) if key in keys]}
+                                          for group in annotations["semantic_alignment"] if any(key in keys for key in group["stages"])]
+    return scoped
 
 
 def build_job_view(payloads: list[dict[str, Any]], annotations: dict[str, Any] | None = None,

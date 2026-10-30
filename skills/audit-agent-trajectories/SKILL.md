@@ -11,6 +11,7 @@ description: 审计 Harbor、DeepSWE、Pier 或类似 coding-agent evaluation �
 
 - 单 trial 始终使用 `full`；单 job 默认 `standard`；只要全量指标时使用 `metrics`。
 - 配对 job 必须先做可比性准入。只有 `full` 覆盖全部可分析失败后，才能报告全量根因分布。
+- 阶段视图按分析范围选择：整个 Job（含配对 Job）首选自动 E/B/I/V/P 概览；单 Trial、一对 Trial 及 Job 下钻详情默认按真实目标、方案和返修变化人工细分语义时序。细节见 [Trial 语义分段与报告格式](references/audits/semantic-trial-analysis.md)。用户指定口径优先；`metrics` 不生成语义解释。
 
 ```bash
 python3 scripts/audit_trajectories.py INPUT [INPUT ...] \
@@ -34,7 +35,7 @@ python3 scripts/normalize_trajectory_events.py INPUT [INPUT ...] \
 - 环境或作弊：[环境](references/audits/environment.md) 或 [评测完整性](references/audits/evaluation-integrity.md)。
 - Token、成本或耗时：[Token 与成本](references/audits/token-and-cost.md)、[耗时](references/audits/latency.md)；跨 trial 时再读 [聚合](references/aggregation.md)。
 - 得分或 verifier：[得分与 verifier](references/audits/score-and-verifier.md)。
-- 探索/编辑/验证轮次或 E/B/I/V/P 阶段：[轮次归一化与分类](references/audits/round-analysis.md)；跨 trial 时再读 [聚合](references/aggregation.md)。
+- 轮次/阶段分析：[轮次归一化与分类](references/audits/round-analysis.md)；Trial 深读另读 [人工语义时序](references/audits/semantic-trial-analysis.md)，Job 概览首选 E/B/I/V/P；跨 trial 时再读 [聚合](references/aggregation.md)。
 - 失败归因：[交付与过程](references/audits/delivery-and-process.md)、[失败模式](references/audits/failure-modes.md)、[根因](references/audits/root-cause.md)。
 - 配对比较：[可比性与抽样](references/core/comparability-and-sampling.md) 和 [聚合](references/aggregation.md)。
 - 交付前完整阅读 [报告规范](references/reporting.md)。

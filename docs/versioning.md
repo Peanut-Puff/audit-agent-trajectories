@@ -12,6 +12,8 @@
 
 ## Semantic Versioning
 
+`v2.10.0` 增加按分析范围选择的阶段默认值：Job 首选 E/B/I/V/P，Trial 默认人工语义细分；扩展离线 Trial HTML 的时序、同目标多段对齐与资源指标。公共 audit schema、确定性 adapter/candidate 规则和 AEO 输出契约不变。
+
 - **MAJOR**：改变 health/比较/违规/根因语义，删除或重命名 CLI/机器字段，或使旧报告无法按原方法解释。
 - **MINOR**：新增专项审计、adapter、可选字段、候选规则或兼容宿主，且旧调用仍有效。
 - **PATCH**：修正文档、误报、解析 bug、脱敏或测试，不改变已有字段的公开语义。
