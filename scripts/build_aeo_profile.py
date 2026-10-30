@@ -38,6 +38,10 @@ SUPPORTED_TASK_TYPES = (
     "job_tool_process_summary",
     "job_delivery_validation_summary",
     "job_risk_optimization_summary",
+    "job_score_optimization",
+    "job_token_optimization",
+    "job_latency_optimization",
+    "job_other_optimization",
 )
 
 

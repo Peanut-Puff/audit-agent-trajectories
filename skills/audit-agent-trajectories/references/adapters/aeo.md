@@ -71,43 +71,58 @@ Authorization header，不得进入 profile、prompt、请求 JSON、普通日�
 
 ## Run scope
 
-当前 AEO Run scope 固定请求以下九个客观维度，并要求每个维度恰好返回一个 item：
+当前 AEO Run scope 固定请求四个优化维度，每个维度恰好返回一个 item：
 
-- `job_data_health_summary`：总体、Trace/feature/telemetry coverage 与缺失限制；
-- `job_outcome_summary`：pass@1 与 Canonical outcome，不依赖多个正式 repeat；
-- `job_verifier_summary`：Verifier 结论、覆盖和错误；
-- `job_execution_health_summary`：执行终态、恢复、超时、错误域和环境候选；
-- `job_latency_efficiency_summary`：总耗时、Case 分布和删失边界；
-- `job_model_resource_summary`：Token、Cache、Reasoning、轮次、成本和 Case 分布；
-- `job_tool_process_summary`：Tool 分类、结果、重试、workspace 与 validation 事件；
-- `job_delivery_validation_summary`：Patch、capture、改动范围和验证覆盖；
-- `job_risk_optimization_summary`：最值得先处理的问题与具体优化建议；
-- 最多 30 条 Job/Trial/Trace evidence 和 20 个分层 Case 示例用于当前布局，旧布局上限 100；
-  Case cohort 来自全量确定性事实，evidence 仍只是下钻样本；
-- 不把候选计数、失败测试数或截断 evidence 写成全量根因率。
+| Task kind | 页面维度 | 应回答的问题 |
+| --- | --- | --- |
+| `job_score_optimization` | 得分 | Agent 哪类可复用的能力或流程问题阻止更多任务通过，怎么改 Agent |
+| `job_token_optimization` | Token | Agent 的提示词、上下文、工具或输出策略怎么减少重复消耗 |
+| `job_latency_optimization` | 耗时 | Agent 的提示词、工具或执行策略怎么减少重复等待 |
+| `job_other_optimization` | 其他（环境、作弊等） | 有什么环境、依赖、资源或完整性问题，怎么处理 |
+
+当前输入保留全量确定性分母、Case cohort 和最多 20 个 Case 示例，最多 100 条 evidence。
+`caseDiagnostics` 按维度优先级遍历全部可选 Case：得分按 F2P/P2P 未通过数降序，Token 按总 Token 降序，
+耗时按执行时长降序，其他按环境/完整性信号排序；同一 Case 在多个维度只读取一次，成功 Case 只作少量对照。
+最终受 evidence 字节和读取预算约束，不按固定 Case 数截断失败任务。每条来源经过有界读取、大小/hash 校验和脱敏，
+缺失、不可读、超限、身份不一致及片段状态分别保留；失败断言定位只是选取证据，不是根因规则。
+旧客观九维继续使用最多 30 条 evidence；2.4 旧布局最多 100 条。
+
+先读诊断证据再写建议。不能用“失败全部来自校验拒绝”“无异常执行”充当得分洞见，
+也不能用“补齐未通过的实现”“提高通过率”“先取得每个被拒任务的失败明细”充当行动。
+不必等全量失败明细齐全才分析已有示例；过程证据也可能独立支持改进，但不得声称能挽回多少未读任务。
+只有计数时，直接写“当前输入只有结果统计，无法定位具体提分改动。”，不铺陈已知结果。
+数据限制只说明本次输入的边界：未传入不等于未采集，结论覆盖完整不等于失败断言完整。
+Token、耗时和其他维度各自按证据分析，不因得分证据不足全部停摆。
+
+报告面向被评测 Agent 的研发者。得分、Token、耗时的行动是改进 Agent 自身的代码、提示词、
+工具、上下文管理或通用执行流程，不能给正在解题的 Agent 下达某个 Case 的修复指令。
+Case 诊断用于发现可推广的机制；单个样本只能支持有边界的优化假设，不能冒充普遍规律。
+任务要求、Dataset、Verifier 口径、模型和评测预算保持固定；不能建议修改这些条件来提分或降低消耗。
+环境与完整性问题可以建议调整相应平台控制。
 
 每项 detail 依次使用“## 关键结论/## 行动/## 影响范围与证据”三个二级标题：
 
 - 关键结论通常一至两句，一句话只说一个结论，分段或分条写；不列举证据、Case 或指标明细。
   影响判断的不确定性直接写进结论，例如“缺少测试记录，暂时无法判断是否漏测”。item 标题也只写简短结论，不复述维度名。
-- 行动主要用于提高得分、减少 Token、缩短耗时，或解决评测环境、作弊等问题；只选与当前问题相关的优化，
+- 行动主要用于提高得分、减少 Token、缩短耗时，或解决评测环境、作弊等问题；前三类行动面向 Agent 的通用提示词、工具、上下文或代码能力。
   不要求凑齐所有方向或每个维度都有建议。最多两条，每条用一句通俗的话说清具体改什么，
   不要求优先级、owner、范围、目标指标和验收清单。不要默认写成补记录、看报告或继续分析；
   必须先排查才能选择修复时，一句话说清查什么，以及据此决定怎么改。
   证据不足时写“暂无法给出优化建议。”，把缺失放到文末；确认没有待优化问题时写“无需动作。”。
 - 影响范围与证据合并为文末一个短段落，概括同类问题，按需保留输入提供的受影响数/可分析数及关键限制；
-  不堆砌 Case 名单或 evidence key。只有能帮助理解时才点名代表 Case，并注明它是示例。
+  不堆砌 Case 名单或 evidence key，单个任务的解题文件、函数与测试留在下钻证据中；
+  改进方案可以明确 Agent 自身的模块、工具或提示词组件，避免空泛。
   可追溯引用保留在结构化 `evidenceKeys` 中，不在正文重复整段证据。
 
-优化要对应已观察到的问题：得分针对遗漏的需求或验证步骤，Token 针对不必要的重复上下文或调用，
+优化要对应已观察到的问题：得分针对 Agent 的需求理解、实现或完成检查机制，Token 针对不必要的重复上下文或调用，
 耗时针对已知等待、重试或冗余步骤，环境针对已证实的依赖、配置或资源故障。
 提高得分依靠正确完成任务，不得建议削弱 Verifier 或利用评分链；作弊只有直接证据支持时才建议封堵对应路径，
 候选信号只建议针对性核查。不能仅因 Token 高或耗时长就削减推理、测试或执行额度。
 
-当前 AEO Markdown 禁用原始 HTML，单改 skill 无法新增折叠交互，因此末段使用精简的普通 Markdown，
-不输出 `<details>` 标签或假装已经折叠。九维、JSON 字段和 evidence key 契约保持不变；
-2.4 的九个旧 task kind 继续保留在 profile 中，使新 Skill 可先导入旧 AEO；新 AEO 选择当前九维，
-历史方案仍按冻结的旧 task kind 执行和解释。
+detail 的末段只使用普通 Markdown，由 AEO 把“影响范围与证据”与证据入口合并折叠；
+skill 不输出原始 HTML。旧宿主仍可平铺显示末段。
+四维 task kind 新增而不删除两个旧九维集合；新 AEO 优先选择四维，旧方案仍按冻结 task kinds 执行。
+旧 AEO 可继续从同一 profile 选择其支持的九维，不改变历史结果。
 
 ## 完成检查
 
